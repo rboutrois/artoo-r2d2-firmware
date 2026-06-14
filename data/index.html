@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Artoo Board v1.1</title>
+<link rel="stylesheet" href="/style.css">
+</head>
+<body>
+<nav>
+  <h1>Artoo Board <small>v1.1</small></h1>
+  <div class="nav-status">
+    <span class="nav-bat" id="nav-bat">— V</span>
+    <span class="nav-mode" id="nav-mode">&#128663;</span>
+    <span id="nav-vol">&#128266; —</span>
+  </div>
+  <a href="/" class="active">Home</a>
+  <a href="/config">Configure</a>
+  <a href="/manual">Manual</a>
+</nav>
+
+<main>
+  <div class="card">
+    <h2>Operation Mode</h2>
+    <div class="mode-btns">
+      <button class="mode-btn active" id="btn-driving"    onclick="setMode(0)">&#128663; Driving Mode</button>
+      <button class="mode-btn"        id="btn-stationary" onclick="setMode(1)">&#127968; Stationary Mode</button>
+    </div>
+    <div class="mode-desc" id="mode-desc">
+      <b>Driving:</b> Left stick = Movement, Right stick = Steering<br>
+      <b>Stationary:</b> Left stick = Dome rotation, Right stick = Volume
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>Status</h2>
+    <div class="row">
+      <span class="label">Battery</span>
+      <span class="val" id="battery">— V</span>
+    </div>
+    <div class="row">
+      <span class="label">Dome Speed</span>
+      <span class="val" id="dome-speed">0%</span>
+    </div>
+    <div class="row">
+      <span class="label">Receiver</span>
+      <span class="val" id="receiver">—</span>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>Controls</h2>
+    <div class="row" style="margin-bottom:12px">
+      <span class="label">Volume</span>
+      <input type="range" id="vol" min="0" max="30"
+             oninput="document.getElementById('vol-val').textContent=this.value"
+             onchange="saveSlider('volume',this.value)">
+      <span class="range-val" id="vol-val">—</span>
+    </div>
+    <div class="row" style="margin-bottom:12px">
+      <span class="label">Top Speed</span>
+      <input type="range" id="spd" min="50" max="1000"
+             oninput="document.getElementById('spd-val').textContent=this.value"
+             onchange="saveSlider('speed',this.value)">
+      <span class="range-val" id="spd-val">—</span>
+    </div>
+    <div class="row">
+      <span class="label">Top Steer</span>
+      <input type="range" id="str" min="50" max="500"
+             oninput="document.getElementById('str-val').textContent=this.value"
+             onchange="saveSlider('steer',this.value)">
+      <span class="range-val" id="str-val">—</span>
+    </div>
+  </div>
+
+  <button class="btn btn-danger btn-block btn-lg" onclick="emergencyStop()">
+    &#9940; EMERGENCY STOP
+  </button>
+</main>
+
+<div id="toast"></div>
+
+<script>
+const RCVR = ['PWM', 'SBUS', 'Dual SBUS'];
+
+function toast(msg, err) {
+  const el = document.getElementById('toast');
+  el.textContent = msg;
+  el.style.background = err ? 'var(--danger)' : 'var(--primary)';
+  el.style.display = 'block';
+  clearTimeout(toast._t);
+  toast._t = setTimeout(() => el.style.display = 'none', 2000);
+}
+
+function post(url, params) {
+  return fetch(url, { method: 'POST', body: new URLSearchParams(params) });
+}
+
+function postJson(url, obj) {
+  return fetch(url, { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify(obj) });
+}
+
+async function emergencyStop() {
+  await post('/emergencyStop');
+  toast('Emergency stop sent');
+}
+
+async function setMode(v) {
+  await post('/setMode', { value: v });
+  refresh();
+}
+
+function saveSlider(key, val) {
+  postJson('/saveConfig', { [key]: +val });
+}
+
+let s_sliders_loaded = false;
+
+async function refresh() {
+  try {
+    const d = await fetch('/status').then(r => r.json());
+
+    // Nav status bar
+    document.getElementById('nav-bat').textContent  = d.battery > 0 ? d.battery.toFixed(1) + ' V' : '— V';
+    document.getElementById('nav-mode').textContent = d.mode === 0 ? '\u{1F697}' : '\u{1F3E0}';
+    document.getElementById('nav-vol').textContent  = '\u{1F50A} ' + d.volume;
+
+    // Status card
+    document.getElementById('battery').textContent   = d.battery > 0 ? d.battery.toFixed(2) + ' V' : '— V';
+    document.getElementById('dome-speed').textContent = d.dome_speed + '%';
+    document.getElementById('receiver').textContent   = RCVR[d.receiver_mode] ?? '—';
+
+    // Mode buttons
+    document.getElementById('btn-driving').className    = 'mode-btn' + (d.mode === 0 ? ' active' : '');
+    document.getElementById('btn-stationary').className = 'mode-btn' + (d.mode === 1 ? ' active' : '');
+
+    // Populate sliders once (first load)
+    if (!s_sliders_loaded) {
+      s_sliders_loaded = true;
+      const v = document.getElementById('vol');
+      const s = document.getElementById('spd');
+      const t = document.getElementById('str');
+      v.value = d.volume; document.getElementById('vol-val').textContent = d.volume;
+      s.value = d.speed;  document.getElementById('spd-val').textContent = d.speed;
+      t.value = d.steer;  document.getElementById('str-val').textContent = d.steer;
+    }
+  } catch (_) {}
+}
+
+refresh();
+setInterval(refresh, 1000);
+</script>
+</body>
+</html>

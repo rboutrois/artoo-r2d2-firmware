@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Artoo — Manual</title>
+<link rel="stylesheet" href="/style.css">
+</head>
+<body>
+<nav>
+  <h1>Artoo R2D2</h1>
+  <a href="/">Home</a>
+  <a href="/manual" class="active">Manual</a>
+  <a href="/config">Config</a>
+</nav>
+
+<main>
+  <div class="card">
+    <h2>Dome</h2>
+    <div class="range-row" style="margin-bottom:14px">
+      <span style="font-size:13px;color:var(--dim);min-width:48px">Speed</span>
+      <input type="range" id="dome-spd" min="-100" max="100" value="0"
+             oninput="document.getElementById('dome-val').textContent=this.value">
+      <span class="range-val" id="dome-val">0</span>
+    </div>
+    <div class="btn-group">
+      <button class="btn btn-accent" onclick="sendDome()">Send</button>
+      <button class="btn btn-ghost"  onclick="stopDome()">Stop</button>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>Sound</h2>
+    <div class="range-row" style="margin-bottom:14px">
+      <span style="font-size:13px;color:var(--dim);min-width:48px">Volume</span>
+      <input type="range" id="vol" min="0" max="30" value="25"
+             oninput="document.getElementById('vol-val').textContent=this.value"
+             onchange="saveVolume()">
+      <span class="range-val" id="vol-val">25</span>
+    </div>
+    <button class="btn btn-primary btn-block" style="margin-bottom:10px" onclick="playRandom()">
+      Play Random Sound
+    </button>
+    <div class="row">
+      <input type="number" id="snd-num" min="1" max="99" value="1"
+             style="width:80px;flex-shrink:0">
+      <button class="btn btn-ghost" style="flex:1" onclick="playSpecific()">Play Sound #</button>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>Arms</h2>
+    <div class="row" style="margin-bottom:10px">
+      <span class="label">Arm 1</span>
+      <div class="btn-group">
+        <button class="btn btn-ghost btn-sm" onclick="testArm(1,'open')">Open</button>
+        <button class="btn btn-ghost btn-sm" onclick="testArm(1,'closed')">Close</button>
+      </div>
+    </div>
+    <div class="row">
+      <span class="label">Arm 2</span>
+      <div class="btn-group">
+        <button class="btn btn-ghost btn-sm" onclick="testArm(2,'open')">Open</button>
+        <button class="btn btn-ghost btn-sm" onclick="testArm(2,'closed')">Close</button>
+      </div>
+    </div>
+  </div>
+</main>
+
+<div id="toast"></div>
+
+<script>
+function post(url, params) {
+  return fetch(url, { method: 'POST', body: new URLSearchParams(params) });
+}
+
+function toast(msg, err) {
+  const el = document.getElementById('toast');
+  el.textContent = msg;
+  el.style.background = err ? 'var(--danger)' : 'var(--primary)';
+  el.style.display = 'block';
+  clearTimeout(toast._t);
+  toast._t = setTimeout(() => el.style.display = 'none', 2000);
+}
+
+function sendDome()   { post('/setDomeManual', { speed: document.getElementById('dome-spd').value }); }
+function stopDome()   {
+  document.getElementById('dome-spd').value = 0;
+  document.getElementById('dome-val').textContent = '0';
+  post('/setDomeManual', { speed: 0 });
+}
+function playRandom()   { post('/playSound'); toast('Playing random sound'); }
+function playSpecific() { post('/playSpecificSound', { number: document.getElementById('snd-num').value }); }
+function testArm(n, pos) { post('/testArm' + n, { position: pos }); }
+function saveVolume() {
+  post('/setVolume', { value: document.getElementById('vol').value });
+}
+
+// Load current volume from status
+fetch('/status').then(r => r.json()).then(d => {
+  document.getElementById('vol').value = d.volume;
+  document.getElementById('vol-val').textContent = d.volume;
+}).catch(() => {});
+</script>
+</body>
+</html>

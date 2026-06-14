@@ -1,0 +1,688 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Artoo — Configure</title>
+<link rel="stylesheet" href="/style.css">
+</head>
+<body>
+<nav>
+  <h1>Artoo Board <small>v1.1</small></h1>
+  <a href="/">Home</a>
+  <a href="/config" class="active">Configure</a>
+  <a href="/manual">Manual</a>
+</nav>
+
+<div class="tab-bar">
+  <button class="tab-btn active" onclick="showTab('receiver')">Receiver</button>
+  <button class="tab-btn"        onclick="showTab('sound')">Sound</button>
+  <button class="tab-btn"        onclick="showTab('dome')">Dome</button>
+  <button class="tab-btn"        onclick="showTab('arms')">Arms</button>
+  <button class="tab-btn"        onclick="showTab('buttons')">Buttons</button>
+  <button class="tab-btn"        onclick="showTab('actions')">Actions</button>
+  <button class="tab-btn"        onclick="showTab('sequences')">Sequences</button>
+  <button class="tab-btn"        onclick="showTab('wifi')">WiFi</button>
+  <button class="tab-btn"        onclick="showTab('system')">System</button>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════ RECEIVER -->
+<div id="tab-receiver" class="tab-pane active">
+<main>
+  <div class="card">
+    <h2>Controller Type</h2>
+    <label class="radio-card selected" id="rc-pwm"  onclick="selectRcvr(0)">
+      <input type="radio" name="rcvr" value="0">
+      <div class="radio-card-title">Standard PWM (6 Channels)</div>
+      <div class="radio-card-sub">Channel 1 to 6</div>
+    </label>
+    <label class="radio-card" id="rc-sbus" onclick="selectRcvr(1)">
+      <input type="radio" name="rcvr" value="1">
+      <div class="radio-card-title">Single SBUS Receiver (6 Channels)</div>
+      <div class="radio-card-sub">Channel 1 = 1 SBUS Receiver</div>
+    </label>
+    <label class="radio-card" id="rc-dual" onclick="selectRcvr(2)">
+      <input type="radio" name="rcvr" value="2">
+      <div class="radio-card-title">Dual SBUS Receivers (12 Channels)</div>
+      <div class="radio-card-sub">Channel 1 and Channel 2 = SBUS Receiver 1 and 2</div>
+    </label>
+    <div class="warning-box" id="dual-warn" style="display:none">
+      &#9888; Change wiring when switching modes. Dual SBUS requires two receivers.
+    </div>
+    <br>
+    <button class="btn btn-primary btn-sm" onclick="saveRcvr()">Save Receiver</button>
+  </div>
+
+  <div class="card">
+    <h2>Motor Direction</h2>
+    <p style="font-size:12px;color:var(--dim);margin-bottom:12px">Enable if a motor is wired backwards.</p>
+    <div class="row" style="margin-bottom:10px">
+      <span class="label">Left Motor</span>
+      <label class="toggle"><input type="checkbox" id="lmot" onchange="updateDir('lmot','lmot-lbl')"><span class="toggle-track"></span></label>
+      <span class="toggle-label" id="lmot-lbl">—</span>
+    </div>
+    <div class="row">
+      <span class="label">Right Motor</span>
+      <label class="toggle"><input type="checkbox" id="rmot" onchange="updateDir('rmot','rmot-lbl')"><span class="toggle-track"></span></label>
+      <span class="toggle-label" id="rmot-lbl">—</span>
+    </div>
+    <br>
+    <button class="btn btn-primary btn-sm" onclick="saveMotorDir()">Save Direction</button>
+  </div>
+
+  <div class="card">
+    <h2>Controller — Live Input</h2>
+    <div class="ctrl-display">
+      <div class="ctrl-axis">
+        <div class="ctrl-label">Steer</div>
+        <div class="ctrl-bar-v"><div id="cf-steer" class="ctrl-fill-v" style="height:0;top:50%"></div></div>
+        <div class="ctrl-val" id="cv-steer">+0</div>
+      </div>
+      <div class="ctrl-btns">
+        <div class="btn-circle" id="bc0">3</div>
+        <div class="btn-circle" id="bc1">4</div>
+        <div class="btn-circle" id="bc2">5</div>
+        <div class="btn-circle" id="bc3">6</div>
+      </div>
+      <div class="ctrl-axis">
+        <div class="ctrl-label">Throttle</div>
+        <div class="ctrl-bar-v"><div id="cf-thr" class="ctrl-fill-v" style="height:0;top:50%"></div></div>
+        <div class="ctrl-val" id="cv-thr">+0</div>
+      </div>
+    </div>
+  </div>
+</main>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════ SOUND -->
+<div id="tab-sound" class="tab-pane">
+<main>
+  <div class="card">
+    <h2>Sound Settings</h2>
+    <div class="row" style="margin-bottom:14px">
+      <span class="label">Volume (0–30)</span>
+      <input type="range" id="s-vol" min="0" max="30" oninput="document.getElementById('s-vol-v').textContent=this.value">
+      <span class="range-val" id="s-vol-v">25</span>
+    </div>
+    <div class="field" style="margin-bottom:10px">
+      <label>Startup Sound #</label>
+      <input type="number" id="s-start" min="1" style="max-width:120px">
+    </div>
+    <div class="row" style="margin-bottom:10px">
+      <span class="label">Random Sounds</span>
+      <label class="toggle"><input type="checkbox" id="s-rnd"><span class="toggle-track"></span></label>
+    </div>
+    <div class="field-row" style="margin-bottom:10px">
+      <div class="field"><label>Min Time (s)</label><input type="number" id="s-tmin"></div>
+      <div class="field"><label>Max Time (s)</label><input type="number" id="s-tmax"></div>
+    </div>
+    <button class="btn btn-primary btn-sm" onclick="saveSound()">Save Sound</button>
+  </div>
+
+  <div class="card">
+    <h2>Play</h2>
+    <div class="row" style="margin-bottom:10px">
+      <input type="number" id="snd-num" min="1" max="99" value="1" style="width:80px;flex-shrink:0">
+      <button class="btn btn-accent" style="flex:1" onclick="post('/playSpecificSound',{number:document.getElementById('snd-num').value})">Play #</button>
+    </div>
+    <button class="btn btn-primary btn-block" onclick="post('/playSound')">Play Random Sound</button>
+  </div>
+</main>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════ DOME -->
+<div id="tab-dome" class="tab-pane">
+<main>
+  <div class="card">
+    <h2>Dome Speed Range</h2>
+    <div class="range-row" style="margin-bottom:8px">
+      <input type="range" id="d-spdr" min="1" max="5" oninput="updateDomeRange(this.value)">
+      <span class="range-val" id="d-spdr-v">3</span>
+    </div>
+    <div style="font-size:12px;color:var(--dim);text-align:center" id="d-range-desc">Level 3 → 30–150°</div>
+  </div>
+
+  <div class="card">
+    <h2>Calibration</h2>
+    <div class="field-row">
+      <div class="field"><label>Stop Position (°)</label><input type="number" id="d-ctr"></div>
+      <div class="field"><label>Full Reverse (°)</label><input type="number" id="d-min"></div>
+    </div>
+    <div class="field-row" style="margin-top:8px">
+      <div class="field"><label>Full Forward (°)</label><input type="number" id="d-max"></div>
+      <div></div>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>Smoothing</h2>
+    <div class="field-row">
+      <div class="field"><label>Acceleration (/s²)</label><input type="number" id="d-acc"></div>
+      <div class="field"><label>Deceleration (/s²)</label><input type="number" id="d-dec"></div>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>Random Rotation</h2>
+    <div class="row" style="margin-bottom:10px">
+      <span class="label">Random Dome</span>
+      <label class="toggle"><input type="checkbox" id="d-rnd"><span class="toggle-track"></span></label>
+    </div>
+    <div class="field-row">
+      <div class="field"><label>Min Time (s)</label><input type="number" id="d-tmin"></div>
+      <div class="field"><label>Max Time (s)</label><input type="number" id="d-tmax"></div>
+    </div>
+  </div>
+
+  <button class="btn btn-primary btn-block" onclick="saveDome()" style="margin:0 16px 16px;width:calc(100% - 32px)">Save Dome</button>
+</main>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════ ARMS -->
+<div id="tab-arms" class="tab-pane">
+<main>
+  <div class="card">
+    <div class="arm-status">
+      <div class="arm-status-item"><span class="label">Arm 1</span><span class="val" id="arm1-state">Closed</span></div>
+      <div class="arm-status-item"><span class="label">Arm 2</span><span class="val" id="arm2-state">Closed</span></div>
+    </div>
+
+    <h3>Arm 1 (Top)</h3>
+    <div class="field-row" style="margin-bottom:8px">
+      <div class="field"><label>Open Position (°)</label><input type="number" id="a1-open"></div>
+      <div class="field"><label>Closed Position (°)</label><input type="number" id="a1-cls"></div>
+    </div>
+    <div class="field-row" style="margin-bottom:10px">
+      <div class="field"><label>Min Pulse (µs)</label><input type="number" id="a1-pmin"></div>
+      <div class="field"><label>Max Pulse (µs)</label><input type="number" id="a1-pmax"></div>
+    </div>
+    <div class="btn-group" style="margin-bottom:6px">
+      <button class="btn btn-ghost btn-sm" onclick="testArm(1,'open')">Test Open</button>
+      <button class="btn btn-ghost btn-sm" onclick="testArm(1,'closed')">Test Closed</button>
+    </div>
+
+    <hr class="sect-divider">
+
+    <h3>Arm 2 (Bottom)</h3>
+    <div class="field-row" style="margin-bottom:8px">
+      <div class="field"><label>Open Position (°)</label><input type="number" id="a2-open"></div>
+      <div class="field"><label>Closed Position (°)</label><input type="number" id="a2-cls"></div>
+    </div>
+    <div class="field-row" style="margin-bottom:10px">
+      <div class="field"><label>Min Pulse (µs)</label><input type="number" id="a2-pmin"></div>
+      <div class="field"><label>Max Pulse (µs)</label><input type="number" id="a2-pmax"></div>
+    </div>
+    <div class="btn-group" style="margin-bottom:6px">
+      <button class="btn btn-ghost btn-sm" onclick="testArm(2,'open')">Test Open</button>
+      <button class="btn btn-ghost btn-sm" onclick="testArm(2,'closed')">Test Closed</button>
+    </div>
+    <p style="font-size:12px;color:var(--dim);margin-top:6px">Use test buttons to verify positions.</p>
+
+    <br>
+    <button class="btn btn-primary btn-sm" onclick="saveArms()">Save Arms</button>
+  </div>
+</main>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════ BUTTONS -->
+<div id="tab-buttons" class="tab-pane">
+<main>
+  <div class="card">
+    <div class="mode-desc" style="margin-bottom:14px">
+      <b>Driving:</b> Left stick = Movement, Right stick = Steering<br>
+      <b>Stationary:</b> Left stick = Dome rotation, Right stick = Volume
+    </div>
+
+    <h3>&#128663; Driving Mode — Programmable Buttons</h3>
+    <div id="btn-drv-rows"></div>
+
+    <hr class="sect-divider">
+
+    <h3>&#127968; Stationary Mode — Programmable Buttons</h3>
+    <p style="font-size:12px;color:var(--dim);margin-bottom:10px">CH1 = Dome rotation · CH2 = Volume (fixed)</p>
+    <div id="btn-sta-rows"></div>
+
+    <br>
+    <button class="btn btn-primary btn-block" onclick="saveButtons()">Save Buttons</button>
+  </div>
+</main>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════ ACTIONS -->
+<div id="tab-actions" class="tab-pane">
+<main>
+  <div class="card">
+    <h2>Custom Actions</h2>
+    <div id="actions-list"></div>
+    <br>
+    <h3>Add / Edit Action</h3>
+    <div class="field" style="margin-bottom:8px"><label>Name</label><input type="text" id="act-name" placeholder="e.g. Wave arms"></div>
+    <div class="field-row" style="margin-bottom:8px">
+      <div class="field">
+        <label>Type</label>
+        <select id="act-type" onchange="updateActParam()">
+          <option value="0">Move Dome</option>
+          <option value="1">Play Sound</option>
+          <option value="2">Open Arm 1</option>
+          <option value="3">Close Arm 1</option>
+          <option value="4">Open Arm 2</option>
+          <option value="5">Close Arm 2</option>
+          <option value="6">Set Volume</option>
+        </select>
+      </div>
+      <div class="field" id="act-p1-wrap">
+        <label id="act-p1-lbl">Speed (-100..100)</label>
+        <input type="number" id="act-p1" value="0">
+      </div>
+    </div>
+    <div class="field" style="margin-bottom:10px">
+      <label>ID (leave 0 to auto-assign)</label>
+      <input type="number" id="act-id" value="0" min="0">
+    </div>
+    <div class="btn-group">
+      <button class="btn btn-primary btn-sm" onclick="saveAction()">Save Action</button>
+    </div>
+  </div>
+</main>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════ SEQUENCES -->
+<div id="tab-sequences" class="tab-pane">
+<main>
+  <div class="card">
+    <h2>Sequences (JSON)</h2>
+    <p style="font-size:12px;color:var(--dim);margin-bottom:10px">
+      Each sequence is an ordered list of <code style="background:var(--bg);padding:1px 4px;border-radius:3px">{action_id, delay_ms}</code> steps.
+    </p>
+    <textarea id="seq-json" rows="10"
+      style="width:100%;background:var(--bg);border:1px solid var(--border);color:var(--text);border-radius:6px;padding:10px;font-family:monospace;font-size:12px;resize:vertical"></textarea>
+    <div class="btn-group" style="margin-top:10px">
+      <button class="btn btn-ghost btn-sm" onclick="loadSeqs()">Reload</button>
+      <button class="btn btn-primary btn-sm" onclick="saveSeqs()">Import JSON</button>
+    </div>
+  </div>
+</main>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════ WIFI -->
+<div id="tab-wifi" class="tab-pane">
+<main>
+  <div class="card">
+    <h2>WiFi Access Point</h2>
+    <div class="field" style="margin-bottom:10px"><label>SSID</label><input type="text" id="w-ssid" maxlength="31"></div>
+    <div class="field" style="margin-bottom:14px"><label>Password</label><input type="password" id="w-pass" maxlength="63"></div>
+    <button class="btn btn-primary btn-sm" onclick="saveWifi()">Save WiFi</button>
+    <p style="font-size:12px;color:var(--dim);margin-top:8px">The AP will restart with the new credentials.</p>
+  </div>
+</main>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════ SYSTEM -->
+<div id="tab-system" class="tab-pane">
+<main>
+  <div class="card">
+    <h2>Firmware Update (OTA)</h2>
+    <div class="field" style="margin-bottom:10px"><label>Firmware .bin</label><input type="file" id="ota-file" accept=".bin"></div>
+    <div id="ota-status" style="font-size:13px;color:var(--dim);min-height:18px;margin-bottom:8px"></div>
+    <button class="btn btn-accent btn-sm" onclick="doOTA()">Upload &amp; Flash</button>
+  </div>
+
+  <div class="card">
+    <h2>Factory Reset</h2>
+    <p style="font-size:13px;color:var(--dim);margin-bottom:12px">Clears all saved settings. All values revert to firmware defaults on next boot.</p>
+    <button class="btn btn-danger btn-sm" onclick="resetConfig()">Reset &amp; Reboot</button>
+  </div>
+</main>
+</div>
+
+<div id="toast"></div>
+
+<script>
+// ── Shared helpers ───────────────────────────────────────────────────────────
+const gv  = id => document.getElementById(id).value;
+const sv  = (id, v) => { document.getElementById(id).value = v; };
+const gc  = id => document.getElementById(id).checked;
+const sc  = (id, v) => { document.getElementById(id).checked = !!v; };
+
+function toast(msg, err) {
+  const el = document.getElementById('toast');
+  el.textContent = msg;
+  el.style.background = err ? 'var(--danger)' : 'var(--primary)';
+  el.style.display = 'block';
+  clearTimeout(toast._t);
+  toast._t = setTimeout(() => el.style.display = 'none', 2500);
+}
+
+function post(url, params) {
+  return fetch(url, { method: 'POST', body: new URLSearchParams(params) });
+}
+
+function postJson(url, obj) {
+  return fetch(url, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(obj)
+  });
+}
+
+async function apiSave(url, obj) {
+  const r = await postJson(url, obj);
+  const d = await r.json();
+  toast(d.ok ? 'Saved' : ('Error: ' + (d.error ?? '?')), !d.ok);
+}
+
+// ── Tab switching ────────────────────────────────────────────────────────────
+function showTab(name) {
+  document.querySelectorAll('.tab-pane').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+  document.getElementById('tab-' + name).classList.add('active');
+  event.target.classList.add('active');
+}
+
+// ── Receiver tab ─────────────────────────────────────────────────────────────
+let s_rcvr = 1;
+function selectRcvr(v) {
+  s_rcvr = v;
+  ['pwm','sbus','dual'].forEach((id, i) => {
+    document.getElementById('rc-' + id).classList.toggle('selected', i === v);
+  });
+  document.getElementById('dual-warn').style.display = v === 2 ? 'block' : 'none';
+}
+
+function saveRcvr() { apiSave('/saveConfig', { receiver_mode: s_rcvr }); }
+
+function updateDir(cbId, lblId) {
+  document.getElementById(lblId).textContent = document.getElementById(cbId).checked ? 'Reversed' : 'Forward';
+}
+function saveMotorDir() {
+  apiSave('/saveConfig', {
+    left_motor_forward:  gc('lmot') ? 1 : 0,
+    right_motor_forward: gc('rmot') ? 1 : 0
+  });
+}
+
+// Live controller bars
+function updateBar(fillId, val) {
+  const fill = document.getElementById(fillId);
+  const pct  = Math.min(Math.abs(val) / 1000, 1) * 45; // max 45% of 90px
+  if (val >= 0) {
+    fill.style.height = pct + 'px';
+    fill.style.top    = (45 - pct) + 'px';
+  } else {
+    fill.style.height = pct + 'px';
+    fill.style.top    = '45px';
+  }
+}
+
+function startLiveCtrl() {
+  setInterval(async () => {
+    try {
+      const d = await fetch('/status').then(r => r.json());
+      updateBar('cf-steer', d.steer_val);
+      updateBar('cf-thr',   d.throttle_val);
+      document.getElementById('cv-steer').textContent = (d.steer_val >= 0 ? '+' : '') + d.steer_val;
+      document.getElementById('cv-thr').textContent   = (d.throttle_val >= 0 ? '+' : '') + d.throttle_val;
+      if (d.btn) {
+        for (let i = 0; i < 4; i++) {
+          document.getElementById('bc' + i).classList.toggle('hi', !!d.btn[i]);
+        }
+      }
+    } catch (_) {}
+  }, 200);
+}
+
+// ── Sound tab ────────────────────────────────────────────────────────────────
+function saveSound() {
+  apiSave('/saveConfig', {
+    volume:         +gv('s-vol'),
+    startup_sound:  +gv('s-start'),
+    random_sounds:  gc('s-rnd') ? 1 : 0,
+    sound_min_time: +gv('s-tmin'),
+    sound_max_time: +gv('s-tmax')
+  });
+}
+
+// ── Dome tab ─────────────────────────────────────────────────────────────────
+function updateDomeRange(v) {
+  const center = +gv('d-ctr') || 90;
+  const range  = v * 20;
+  document.getElementById('d-range-desc').textContent =
+    'Level ' + v + ' → ' + (center - range) + '–' + (center + range) + '°';
+  document.getElementById('d-spdr-v').textContent = v;
+}
+function saveDome() {
+  apiSave('/saveConfig', {
+    dome_center:     +gv('d-ctr'), dome_min: +gv('d-min'), dome_max: +gv('d-max'),
+    dome_speed_range:+gv('d-spdr'),
+    dome_accel:      +gv('d-acc'), dome_decel: +gv('d-dec'),
+    random_dome:     gc('d-rnd') ? 1 : 0,
+    dome_min_time:   +gv('d-tmin'), dome_max_time: +gv('d-tmax')
+  });
+}
+
+// ── Arms tab ─────────────────────────────────────────────────────────────────
+async function testArm(n, pos) {
+  await post('/testArm' + n, { position: pos });
+  document.getElementById('arm' + n + '-state').textContent = pos === 'open' ? 'Open' : 'Closed';
+}
+function saveArms() {
+  apiSave('/saveConfig', {
+    arm1_open: +gv('a1-open'), arm1_closed: +gv('a1-cls'),
+    arm1_min_pulse: +gv('a1-pmin'), arm1_max_pulse: +gv('a1-pmax'),
+    arm2_open: +gv('a2-open'), arm2_closed: +gv('a2-cls'),
+    arm2_min_pulse: +gv('a2-pmin'), arm2_max_pulse: +gv('a2-pmax')
+  });
+}
+
+// ── Buttons tab ──────────────────────────────────────────────────────────────
+const BTN_ACTIONS = [
+  { v:0,  label:'None',                          param:false },
+  { v:1,  label:'Toggle Driving / Stationary',   param:false },
+  { v:2,  label:'Play Random Sound',             param:false },
+  { v:3,  label:'Play Sound #',                  param:true,  ph:'Track #'       },
+  { v:4,  label:'Open Arm 1',                    param:false },
+  { v:5,  label:'Close Arm 1',                   param:false },
+  { v:6,  label:'Open Arm 2',                    param:false },
+  { v:7,  label:'Close Arm 2',                   param:false },
+  { v:8,  label:'Move Dome',                     param:true,  ph:'Speed −95…+95' },
+  { v:9,  label:'Custom Action #',               param:true,  ph:'Action ID'     },
+  { v:10, label:'Sequence #',                    param:true,  ph:'Sequence ID'   },
+];
+
+let s_btns = {
+  driving:    Array(4).fill(null).map(() => ({action:0,param1:0})),
+  stationary: Array(4).fill(null).map(() => ({action:0,param1:0}))
+};
+
+function buildBtnRows(containerId, data) {
+  const wrap = document.getElementById(containerId);
+  wrap.innerHTML = '';
+  ['CH3','CH4','CH5','CH6'].forEach((ch, i) => {
+    const row = document.createElement('div');
+    row.style.cssText = 'display:flex;gap:8px;align-items:center;margin-bottom:10px';
+
+    const lbl = document.createElement('span');
+    lbl.textContent = ch;
+    lbl.style.cssText = 'font-size:12px;font-weight:700;color:var(--dim);min-width:34px;flex-shrink:0';
+
+    const sel = document.createElement('select');
+    sel.style.flex = '1';
+    BTN_ACTIONS.forEach(a => {
+      const o = document.createElement('option');
+      o.value = a.v; o.textContent = a.label; sel.appendChild(o);
+    });
+    sel.value = data[i].action;
+
+    const inp = document.createElement('input');
+    inp.type = 'number'; inp.value = data[i].param1;
+    inp.style.cssText = 'width:80px;display:none;flex-shrink:0';
+
+    function refresh() {
+      const a = BTN_ACTIONS.find(a => a.v == +sel.value);
+      inp.style.display = (a && a.param) ? 'block' : 'none';
+      if (a && a.param) inp.placeholder = a.ph || '';
+    }
+    sel.addEventListener('change', refresh); refresh();
+
+    row.appendChild(lbl); row.appendChild(sel); row.appendChild(inp);
+    wrap.appendChild(row);
+  });
+}
+
+function collectBtnRows(containerId) {
+  const rows = document.getElementById(containerId).children;
+  return Array.from(rows).map(row => {
+    const sel = row.querySelector('select');
+    const inp = row.querySelector('input');
+    return { action: +sel.value, param1: +(inp ? inp.value : 0) };
+  });
+}
+
+async function saveButtons() {
+  await apiSave('/saveButtonConfig', {
+    driving:    collectBtnRows('btn-drv-rows'),
+    stationary: collectBtnRows('btn-sta-rows')
+  });
+}
+
+// ── Actions tab ──────────────────────────────────────────────────────────────
+const ACT_PARAM_LABELS = ['Speed (-100..100)', 'Track #', '', '', '', '', 'Volume (0–30)'];
+
+function updateActParam() {
+  const t = +gv('act-type');
+  const needParam = t === 0 || t === 1 || t === 6;
+  document.getElementById('act-p1-wrap').style.display = needParam ? '' : 'none';
+  document.getElementById('act-p1-lbl').textContent    = ACT_PARAM_LABELS[t] || 'Param';
+}
+
+async function loadActions() {
+  try {
+    const data = await fetch('/getCustomActions').then(r => r.json());
+    const list = document.getElementById('actions-list');
+    list.innerHTML = '';
+    if (!Array.isArray(data) || data.length === 0) {
+      list.innerHTML = '<p style="font-size:13px;color:var(--dim);margin-bottom:10px">No custom actions yet.</p>';
+      return;
+    }
+    const typeNames = ['Move Dome','Play Sound','Open Arm1','Close Arm1','Open Arm2','Close Arm2','Set Volume'];
+    data.forEach(a => {
+      const row = document.createElement('div');
+      row.style.cssText = 'display:flex;align-items:center;gap:8px;padding:8px 0;border-bottom:1px solid var(--border)';
+      row.innerHTML = `
+        <span style="flex:1;font-size:13px"><b>${a.name}</b> <span style="color:var(--dim)">[${typeNames[a.type]||'?'} p1=${a.param1}]</span></span>
+        <button class="btn btn-ghost btn-sm" onclick="post('/testCustomAction',{id:${a.id}})">Test</button>
+        <button class="btn btn-danger btn-sm" onclick="deleteAction(${a.id})">&#10005;</button>`;
+      list.appendChild(row);
+    });
+    list.innerHTML += '<br>';
+  } catch (_) {}
+}
+
+async function saveAction() {
+  const id = +gv('act-id') || Date.now() % 100000;
+  await apiSave('/saveCustomAction', {
+    id, name: gv('act-name'), type: +gv('act-type'),
+    param1: +gv('act-p1'), param2: 0
+  });
+  await loadActions();
+}
+
+async function deleteAction(id) {
+  await post('/deleteCustomAction', { id });
+  await loadActions();
+}
+
+// ── Sequences tab ─────────────────────────────────────────────────────────────
+async function loadSeqs() {
+  try {
+    const d = await fetch('/getSequences').then(r => r.json());
+    document.getElementById('seq-json').value = JSON.stringify(d, null, 2);
+  } catch (_) {}
+}
+async function saveSeqs() {
+  const r = await fetch('/importSequences', {
+    method:'POST', headers:{'Content-Type':'application/json'},
+    body: document.getElementById('seq-json').value
+  });
+  const d = await r.json();
+  toast(d.ok ? 'Sequences saved' : 'Error', !d.ok);
+}
+
+// ── WiFi tab ─────────────────────────────────────────────────────────────────
+async function saveWifi() {
+  const r = await fetch('/setWiFiConfig', {
+    method: 'POST',
+    body: new URLSearchParams({ ssid: gv('w-ssid'), password: gv('w-pass') })
+  });
+  const d = await r.json();
+  toast(d.ok ? 'WiFi updated' : 'Error: ' + (d.error ?? '?'), !d.ok);
+}
+
+// ── System tab ────────────────────────────────────────────────────────────────
+async function resetConfig() {
+  if (!confirm('Reset all settings to defaults and reboot?')) return;
+  await fetch('/resetConfig', { method: 'POST' });
+  toast('Rebooting…');
+}
+
+async function doOTA() {
+  const file = document.getElementById('ota-file').files[0];
+  if (!file) { toast('Select a .bin file first', true); return; }
+  const status = document.getElementById('ota-status');
+  status.textContent = 'Uploading…';
+  const fd = new FormData(); fd.append('file', file, file.name);
+  try {
+    const r = await fetch('/update', { method: 'POST', body: fd });
+    const t = await r.text();
+    status.textContent = t.includes('OK') ? 'Done — device is rebooting.' : 'Error: ' + t;
+  } catch (_) { status.textContent = 'Upload failed'; }
+}
+
+// ── Load all config on page open ─────────────────────────────────────────────
+Promise.all([
+  fetch('/getConfig').then(r => r.json()),
+  fetch('/getWiFiConfig').then(r => r.json()),
+  fetch('/getButtonConfig').then(r => r.json())
+]).then(([c, w, b]) => {
+  // Receiver
+  selectRcvr(c.receiver_mode ?? 1);
+  sc('lmot', c.left_motor_forward);  updateDir('lmot','lmot-lbl');
+  sc('rmot', c.right_motor_forward); updateDir('rmot','rmot-lbl');
+
+  // Sound
+  sv('s-vol',   c.volume);   document.getElementById('s-vol-v').textContent = c.volume;
+  sv('s-start', c.startup_sound);
+  sc('s-rnd',   c.random_sounds);
+  sv('s-tmin',  c.sound_min_time);
+  sv('s-tmax',  c.sound_max_time);
+
+  // Dome
+  sv('d-ctr',  c.dome_center);  sv('d-min', c.dome_min);   sv('d-max', c.dome_max);
+  sv('d-spdr', c.dome_speed_range); updateDomeRange(c.dome_speed_range);
+  sv('d-acc',  c.dome_accel);   sv('d-dec', c.dome_decel);
+  sc('d-rnd',  c.random_dome);
+  sv('d-tmin', c.dome_min_time); sv('d-tmax', c.dome_max_time);
+
+  // Arms
+  sv('a1-open', c.arm1_open); sv('a1-cls', c.arm1_closed);
+  sv('a1-pmin', c.arm1_min_pulse); sv('a1-pmax', c.arm1_max_pulse);
+  sv('a2-open', c.arm2_open); sv('a2-cls', c.arm2_closed);
+  sv('a2-pmin', c.arm2_min_pulse); sv('a2-pmax', c.arm2_max_pulse);
+
+  // WiFi
+  sv('w-ssid', w.ssid); sv('w-pass', w.password);
+
+  // Buttons
+  if (b.driving)    s_btns.driving    = b.driving;
+  if (b.stationary) s_btns.stationary = b.stationary;
+  buildBtnRows('btn-drv-rows', s_btns.driving);
+  buildBtnRows('btn-sta-rows', s_btns.stationary);
+}).catch(() => toast('Could not load config', true));
+
+loadActions();
+loadSeqs();
+updateActParam();
+startLiveCtrl();
+</script>
+</body>
+</html>
