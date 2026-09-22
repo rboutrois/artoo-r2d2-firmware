@@ -20,6 +20,14 @@
 </nav>
 
 <main>
+  <div id="estop-banner" style="display:none;background:var(--danger);color:#fff;
+       padding:14px;border-radius:10px;margin-bottom:14px;text-align:center">
+    <b>&#9940; EMERGENCY STOP LATCHED</b>
+    <div style="font-size:13px;margin-top:4px">Motors, dome and sounds stay cut until you release it.</div>
+    <button class="btn btn-block" style="margin-top:10px;background:#fff;color:var(--danger)"
+            onclick="clearEstop()">Release</button>
+  </div>
+
   <div class="card">
     <h2>Operation Mode</h2>
     <div class="mode-btns">
@@ -45,6 +53,16 @@
     <div class="row">
       <span class="label">Receiver</span>
       <span class="val" id="receiver">—</span>
+    </div>
+    <div class="row">
+      <span class="label">RC link</span>
+      <span class="val" id="rc-link">—</span>
+    </div>
+    <div class="row">
+      <span class="label">Crowd limit</span>
+      <div class="btn-group">
+        <button class="btn btn-ghost btn-sm" id="crowd-btn" onclick="toggleCrowd()">—</button>
+      </div>
     </div>
   </div>
 
@@ -102,7 +120,22 @@ function postJson(url, obj) {
 
 async function emergencyStop() {
   await post('/emergencyStop');
-  toast('Emergency stop sent');
+  toast('Emergency stop latched');
+  refresh();
+}
+
+async function clearEstop() {
+  await post('/clearEmergencyStop');
+  toast('Emergency stop released');
+  refresh();
+}
+
+let s_crowd = true;
+async function toggleCrowd() {
+  s_crowd = !s_crowd;
+  await post('/setCrowdLimit', { value: s_crowd ? 1 : 0 });
+  toast(s_crowd ? 'Crowd limit ON' : 'Crowd limit OFF', !s_crowd);
+  refresh();
 }
 
 async function setMode(v) {
@@ -129,6 +162,18 @@ async function refresh() {
     document.getElementById('battery').textContent   = d.battery > 0 ? d.battery.toFixed(2) + ' V' : '— V';
     document.getElementById('dome-speed').textContent = d.dome_speed + '%';
     document.getElementById('receiver').textContent   = RCVR[d.receiver_mode] ?? '—';
+
+    // Safety
+    const link = document.getElementById('rc-link');
+    link.textContent = d.rc_ok ? 'OK' : 'LOST';
+    link.style.color = d.rc_ok ? '' : 'var(--danger)';
+
+    s_crowd = !!d.crowd_limit;
+    const cb = document.getElementById('crowd-btn');
+    cb.textContent = s_crowd ? ('ON, ' + d.crowd_speed) : 'OFF';
+    cb.className   = 'btn btn-sm ' + (s_crowd ? 'btn-primary' : 'btn-ghost');
+
+    document.getElementById('estop-banner').style.display = d.estop ? 'block' : 'none';
 
     // Mode buttons
     document.getElementById('btn-driving').className    = 'mode-btn' + (d.mode === 0 ? ' active' : '');

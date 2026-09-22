@@ -25,6 +25,9 @@ static void execute(const BtnConfig& b, ArtooConfig* cfg, ArtooStatus* status) {
 }
 
 void buttons_update(ArtooConfig* cfg, ArtooStatus* status) {
+    // Latched emergency stop: RC buttons must not start anything
+    if (status->estop) return;
+
     BtnConfig* btns = (status->mode == MODE_DRIVING)
         ? cfg->btnDriving
         : cfg->btnStationary;

@@ -72,6 +72,10 @@ void loop() {
     sbus_update(&gStatus);
     buttons_update(&gConfig, &gStatus);
 
+    // Advance the running sequence, if any (never blocks).
+    // Nothing new is allowed to start while the emergency stop is latched.
+    if (!gStatus.estop) sequence_update(&gConfig);
+
     // Send hoverboard commands every 100 ms (stops automatically in stationary mode)
     hoverboard_update(&gConfig, &gStatus);
 
@@ -79,7 +83,7 @@ void loop() {
     dome_update(&gConfig, &gStatus);
 
     // Random sounds timer
-    sound_update(&gConfig, &gStatus);
+    if (!gStatus.estop) sound_update(&gConfig, &gStatus);
 
     // WebServer (handle client)
     wifi_handle_client();

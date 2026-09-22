@@ -91,6 +91,10 @@ typedef struct {
     // RC
     int     receiverMode;   // 0=PWM, 1=SBUS, 2=DualSBUS
 
+    // Safety
+    bool    crowdLimit;     // cap top speed to crowdSpeed (indoor / public events)
+    int     crowdSpeed;     // capped top speed used when crowdLimit is on
+
     // WiFi
     char    wifiSSID[32];
     char    wifiPassword[64];
@@ -110,6 +114,10 @@ typedef struct {
     int     domeSpeed;
     float   batteryVoltage;
     int     mode;           // 0=driving, 1=stationary
+
+    // Safety
+    bool    estop;          // latched emergency stop — cleared only on request
+    bool    rcFailsafe;     // no usable RC link right now
 } ArtooStatus;
 
 // --- Custom Action ---

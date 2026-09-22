@@ -118,7 +118,8 @@ bool action_run(int id, const ArtooConfig* cfg) {
         int p1 = obj["param1"] | 0;
         int p2 = obj["param2"] | 0;
         switch (type) {
-            case ACTION_MOVE_DOME:   dome_set_speed(p1);                   break;
+            // param2 = duration in ms (0 = keep spinning until told otherwise)
+            case ACTION_MOVE_DOME:   dome_set_speed_for(p1, p2);           break;
             case ACTION_PLAY_SOUND:  sound_play(p1);                       break;
             case ACTION_OPEN_ARM1:   arms_set(1, true);                    break;
             case ACTION_CLOSE_ARM1:  arms_set(1, false);                   break;
@@ -183,18 +184,69 @@ bool sequence_delete(int id) {
     return writeFile(SPIFFS_SEQUENCES_FILE, out);
 }
 
+// ---------------------------------------------------------------------------
+// Sequence player (non-blocking)
+// ---------------------------------------------------------------------------
+// A sequence must never block loop(): while it runs, RC input still has to be
+// read, the hoverboard watchdog still has to be fed and the emergency stop must
+// stay reachable. So the steps are loaded into RAM and played by sequence_update().
+
+typedef struct {
+    int actionId;
+    int delayMs;    // wait after running this step
+} SeqStep;
+
+static SeqStep       s_steps[MAX_SEQUENCE_STEPS];
+static int           s_stepCount  = 0;
+static int           s_stepIdx    = -1;   // -1 = idle
+static unsigned long s_nextStepMs = 0;
+
 bool sequence_run(int id, const ArtooConfig* cfg) {
+    (void)cfg;
     JsonDocument doc;
     deserializeJson(doc, readFile(SPIFFS_SEQUENCES_FILE));
     for (JsonObject seq : doc.as<JsonArray>()) {
         if ((int)(seq["id"] | -1) != id) continue;
+
+        s_stepCount = 0;
         for (JsonObject step : seq["steps"].as<JsonArray>()) {
-            int actionId = step["action_id"] | -1;
-            int delayMs  = step["delay_ms"]  | 0;
-            if (actionId >= 0) action_run(actionId, cfg);
-            if (delayMs  >  0) delay(delayMs);   // blocking — sequences are short
+            if (s_stepCount >= MAX_SEQUENCE_STEPS) break;
+            s_steps[s_stepCount].actionId = step["action_id"] | -1;
+            s_steps[s_stepCount].delayMs  = step["delay_ms"]  | 0;
+            s_stepCount++;
         }
+
+        s_stepIdx    = 0;
+        s_nextStepMs = millis();   // first step runs on the next update
         return true;
     }
     return false;
+}
+
+void sequence_update(const ArtooConfig* cfg) {
+    if (s_stepIdx < 0) return;
+
+    unsigned long now = millis();
+    if ((long)(now - s_nextStepMs) < 0) return;
+
+    // Run every step that is due. A step with delay 0 chains straight into the
+    // next one, which is what the blocking version did.
+    while (s_stepIdx < s_stepCount) {
+        const SeqStep& st = s_steps[s_stepIdx];
+        s_stepIdx++;
+        if (st.actionId >= 0) action_run(st.actionId, cfg);
+        if (st.delayMs  >  0) {
+            s_nextStepMs = now + (unsigned long)st.delayMs;
+            return;
+        }
+    }
+    s_stepIdx = -1;   // finished
+}
+
+void sequence_stop() {
+    s_stepIdx = -1;
+}
+
+bool sequence_is_running() {
+    return s_stepIdx >= 0;
 }

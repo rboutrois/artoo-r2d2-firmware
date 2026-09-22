@@ -84,6 +84,11 @@ static void handleStatus() {
     doc["volume"]              = pConfig->volume;
     doc["mode"]                = pStatus->mode;
     doc["receiver_mode"]       = pConfig->receiverMode;
+    doc["estop"]               = pStatus->estop      ? 1 : 0;
+    doc["rc_ok"]               = pStatus->rcFailsafe ? 0 : 1;
+    doc["crowd_limit"]         = pConfig->crowdLimit ? 1 : 0;
+    doc["crowd_speed"]         = pConfig->crowdSpeed;
+    doc["sequence_running"]    = sequence_is_running() ? 1 : 0;
 
     JsonArray btn = doc["btn"].to<JsonArray>();
     for (int i = 0; i < 4; i++) btn.add(sbus_button_state(i) ? 1 : 0);
@@ -126,6 +131,8 @@ static void handleGetConfig() {
     doc["arm2_min_pulse"]      = pConfig->arm2MinPulse;
     doc["arm2_max_pulse"]      = pConfig->arm2MaxPulse;
     doc["receiver_mode"]       = pConfig->receiverMode;
+    doc["crowd_limit"]         = pConfig->crowdLimit ? 1 : 0;
+    doc["crowd_speed"]         = pConfig->crowdSpeed;
 
     String out;
     serializeJson(doc, out);
@@ -170,6 +177,8 @@ static void handleSaveConfig() {
     pConfig->arm2MinPulse   = doc["arm2_min_pulse"]      | pConfig->arm2MinPulse;
     pConfig->arm2MaxPulse   = doc["arm2_max_pulse"]      | pConfig->arm2MaxPulse;
     pConfig->receiverMode   = doc["receiver_mode"]       | pConfig->receiverMode;
+    pConfig->crowdLimit     = (doc["crowd_limit"]        | (pConfig->crowdLimit ? 1 : 0)) != 0;
+    pConfig->crowdSpeed     = doc["crowd_speed"]         | pConfig->crowdSpeed;
 
     config_save(pConfig);
     sendOk();
@@ -507,14 +516,32 @@ static void handleResetConfig() {
 // Emergency stop
 // ---------------------------------------------------------------------------
 
+// The stop has to LATCH. Zeroing the stick values only bought 20 ms: the next
+// sbus_update() read the sticks again and the robot carried on. Once latched,
+// every module refuses to drive until /clearEmergencyStop is called.
 static void handleEmergencyStop() {
+    pStatus->estop             = true;
     pStatus->throttleVal       = 0;
     pStatus->steerVal          = 0;
     pStatus->secondThrottleVal = 0;
     pStatus->secondSteerVal    = 0;
+    sequence_stop();
     hoverboard_send_stop();
     dome_stop();
     sound_stop();
+    sendOk();
+}
+
+static void handleClearEmergencyStop() {
+    pStatus->estop = false;
+    sendOk();
+}
+
+// Crowd limit: one tap to cap the top speed for an indoor event, one tap to
+// get the full range back, without editing the configured top speed.
+static void handleSetCrowdLimit() {
+    pConfig->crowdLimit = (server.arg("value").toInt() != 0);
+    config_save(pConfig);
     sendOk();
 }
 
@@ -616,6 +643,8 @@ static void registerRoutes() {
 
     // Safety, OTA & factory reset
     server.on("/emergencyStop",       HTTP_POST, handleEmergencyStop);
+    server.on("/clearEmergencyStop",  HTTP_POST, handleClearEmergencyStop);
+    server.on("/setCrowdLimit",       HTTP_POST, handleSetCrowdLimit);
     server.on("/resetConfig",         HTTP_POST, handleResetConfig);
     server.on("/update",              HTTP_POST, handleUpdateDone, handleUpdateUpload);
 

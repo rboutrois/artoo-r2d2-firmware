@@ -142,6 +142,22 @@
 #define DEFAULT_ARM2_MAX_PULSE  2000
 
 // -----------------------------------------------------------------------------
+// SAFETY
+// -----------------------------------------------------------------------------
+// No valid RC frame for this long -> failsafe. The receiver reports its own
+// failsafe, but it cannot report being unplugged, dead or cut off: then frames
+// simply stop arriving and only this watchdog catches it.
+#define RC_TIMEOUT_MS           300     // ms
+
+// Crowd limit: hard cap on top speed regardless of the configured top speed.
+// Meant for indoor events where the robot drives among people.
+#define DEFAULT_CROWD_LIMIT     true
+#define DEFAULT_CROWD_SPEED     120     // same scale as DEFAULT_SPEED (50-1000)
+
+// Sequence player
+#define MAX_SEQUENCE_STEPS      24
+
+// -----------------------------------------------------------------------------
 // WIFI
 // -----------------------------------------------------------------------------
 #define DEFAULT_WIFI_SSID       "ArtooR2D2"

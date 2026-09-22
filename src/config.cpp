@@ -40,6 +40,9 @@ void config_init(ArtooConfig* cfg) {
 
     cfg->receiverMode   = prefs.getInt("rcv_mode",   RECEIVER_SBUS);
 
+    cfg->crowdLimit     = prefs.getBool("crowd_on",  DEFAULT_CROWD_LIMIT);
+    cfg->crowdSpeed     = prefs.getInt("crowd_spd",  DEFAULT_CROWD_SPEED);
+
     for (int i = 0; i < 4; i++) {
         char ka[8], kp[9];
         snprintf(ka, sizeof(ka), "bd%d_a",  i);
@@ -95,6 +98,9 @@ void config_save(const ArtooConfig* cfg) {
     prefs.putInt("a2_pmax",    cfg->arm2MaxPulse);
 
     prefs.putInt("rcv_mode",   cfg->receiverMode);
+
+    prefs.putBool("crowd_on",  cfg->crowdLimit);
+    prefs.putInt("crowd_spd",  cfg->crowdSpeed);
     for (int i = 0; i < 4; i++) {
         char ka[8], kp[9];
         snprintf(ka, sizeof(ka), "bd%d_a",  i);

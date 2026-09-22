@@ -8,6 +8,7 @@ static float         s_currentSpeed = 0.0f;   // -100..+100, smoothed
 static float         s_targetSpeed  = 0.0f;
 static unsigned long s_lastUpdate   = 0;
 static unsigned long s_nextRandom   = 0;
+static unsigned long s_moveUntil    = 0;   // end of a timed move (0 = none)
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -40,17 +41,42 @@ void dome_set_speed(int speed) {
     if (speed >  100) speed =  100;
     if (speed < -100) speed = -100;
     s_targetSpeed = (float)speed;
+    s_moveUntil   = 0;   // an explicit speed request cancels any timed move
+}
+
+// Spin for durationMs then stop by itself. Without this a "move dome" action
+// with a duration would start the dome and never end it.
+void dome_set_speed_for(int speed, int durationMs) {
+    dome_set_speed(speed);
+    if (durationMs > 0) s_moveUntil = millis() + (unsigned long)durationMs;
 }
 
 void dome_stop() {
     s_targetSpeed  = 0.0f;
     s_currentSpeed = 0.0f;
+    s_moveUntil    = 0;
 }
 
 void dome_update(const ArtooConfig* cfg, ArtooStatus* status) {
     unsigned long now = millis();
     float dt = (float)(now - s_lastUpdate) / 1000.0f;
     s_lastUpdate = now;
+
+    // Latched emergency stop: dome dead, nothing else runs
+    if (status->estop) {
+        s_targetSpeed  = 0.0f;
+        s_currentSpeed = 0.0f;
+        s_moveUntil    = 0;
+        writeServo(cfg);
+        status->domeSpeed = 0;
+        return;
+    }
+
+    // Timed move expired
+    if (s_moveUntil != 0 && (long)(now - s_moveUntil) >= 0) {
+        s_moveUntil   = 0;
+        s_targetSpeed = 0.0f;
+    }
 
     // In stationary mode the left stick controls the dome directly
     if (status->mode == MODE_STATIONARY && !cfg->randomDome) {

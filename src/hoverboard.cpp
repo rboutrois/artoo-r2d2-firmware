@@ -87,15 +87,20 @@ void hoverboard_update(const ArtooConfig* cfg, ArtooStatus* status) {
     unsigned long now = millis();
     if (now - s_lastSend < HOVER_SEND_INTERVAL) return;
 
-    // In stationary mode send a stop frame — no drive commands
-    if (status->mode == MODE_STATIONARY) {
+    // Latched emergency stop or stationary mode: stop frames only, no drive
+    if (status->estop || status->mode == MODE_STATIONARY) {
         s_lastSend = now;
         sendCommand(0, 0);
         return;
     }
     s_lastSend = now;
 
-    int16_t speed = scale(status->throttleVal, cfg->speed);
+    // Crowd limit caps the configured top speed without touching it, so the
+    // event setting can be switched on and off in one tap.
+    int topSpeed = cfg->speed;
+    if (cfg->crowdLimit && cfg->crowdSpeed < topSpeed) topSpeed = cfg->crowdSpeed;
+
+    int16_t speed = scale(status->throttleVal, topSpeed);
     int16_t steer = scale(status->steerVal,    cfg->steer);
 
     // Apply motor direction flags:
