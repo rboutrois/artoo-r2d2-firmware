@@ -60,7 +60,7 @@ void setup() {
     arms_init(&gConfig);
 
     // 7b. Dome panel servos (two PCA9685 boards: 0x40 + 0x41)
-    panels_init();
+    panels_init(&gConfig);
 
     // 8. Custom actions & sequences (SPIFFS JSON)
     actions_init();
@@ -82,6 +82,9 @@ void loop() {
 
     // Autonomous reception behaviour (dome + sound only, never the wheels)
     greeter_update(&gConfig, &gStatus);
+
+    // Dome panel animations
+    if (!gStatus.estop) panels_update();
 
     // Send hoverboard commands every 100 ms (stops automatically in stationary mode)
     hoverboard_update(&gConfig, &gStatus);

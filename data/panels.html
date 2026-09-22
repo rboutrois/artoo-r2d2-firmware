@@ -1,0 +1,180 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Artoo — Panneaux</title>
+<link rel="stylesheet" href="/style.css">
+<style>
+  .servo-grid { display: grid; grid-template-columns: repeat(8, 1fr); gap: 6px; }
+  .servo-btn {
+    min-height: 40px; border-radius: 6px; border: 1px solid var(--border);
+    background: var(--surface); color: var(--dim); font-size: 13px; font-weight: 600;
+  }
+  .servo-btn.sel { background: var(--accent); color: #fff; border-color: var(--accent); }
+  .servo-btn.done { color: var(--green); border-color: var(--green); }
+  .warn { background: rgba(218,54,51,.12); border: 1px solid var(--danger);
+          color: #ff7b72; padding: 10px; border-radius: var(--radius);
+          font-size: 13px; margin-bottom: 14px; }
+</style>
+</head>
+<body>
+<nav>
+  <h1>Artoo <small>Panneaux du dome</small></h1>
+  <a href="/">Home</a>
+  <a href="/show">Accueil</a>
+  <a href="/panels" class="active">Panneaux</a>
+</nav>
+
+<main>
+  <div class="warn" id="warn" style="display:none">
+    Panneaux desactives. Active-les puis redemarre la carte : le bus I2C et les
+    deux PCA9685 sont initialises au demarrage.
+  </div>
+
+  <div class="card">
+    <h2>Etat</h2>
+    <div class="row">
+      <span class="label">Panneaux</span>
+      <div class="btn-group">
+        <button class="btn btn-sm" id="en-btn" onclick="toggleEnabled()">—</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>Servo <span id="sel-label" style="color:var(--accent)">0</span></h2>
+    <div class="servo-grid" id="grid"></div>
+  </div>
+
+  <div class="card">
+    <h2>Calibration</h2>
+    <div class="range-row" style="margin-bottom:12px">
+      <span class="label">PWM</span>
+      <input type="range" id="pwm" min="100" max="650" value="150"
+             oninput="onSlide(this.value)">
+      <span class="range-val" id="pwm-val">150</span>
+    </div>
+    <div class="btn-group" style="margin-bottom:10px">
+      <button class="btn btn-ghost" onclick="capture('closed')">Ferme = ici</button>
+      <button class="btn btn-ghost" onclick="capture('open')">Ouvert = ici</button>
+    </div>
+    <div class="row" style="margin-bottom:10px">
+      <span class="label">Ferme</span><span class="val" id="v-closed">—</span>
+      <span class="label" style="margin-left:16px">Ouvert</span><span class="val" id="v-open">—</span>
+    </div>
+    <button class="btn btn-primary btn-block" onclick="save()">Enregistrer ce servo</button>
+  </div>
+
+  <div class="card">
+    <h2>Essais</h2>
+    <div class="btn-group" style="margin-bottom:10px">
+      <button class="btn btn-ghost" onclick="post('/panelSet',{servo:sel,open:0})">Fermer</button>
+      <button class="btn btn-ghost" onclick="post('/panelSet',{servo:sel,open:1})">Ouvrir</button>
+    </div>
+    <div class="btn-group" style="margin-bottom:10px">
+      <button class="btn btn-ghost" onclick="post('/panelsAll',{open:0})">Tout fermer</button>
+      <button class="btn btn-ghost" onclick="post('/panelsAll',{open:1})">Tout ouvrir</button>
+    </div>
+    <div class="btn-group">
+      <button class="btn btn-accent" onclick="post('/panelsWave',{open:1,step:120})">Cascade ouverte</button>
+      <button class="btn btn-accent" onclick="post('/panelsWave',{open:0,step:100})">Cascade fermee</button>
+    </div>
+  </div>
+</main>
+
+<div id="toast"></div>
+
+<script>
+let sel = 0;
+let closed = [], open = [], enabled = false;
+let pending = null, lastSent = 0;
+
+function post(url, params) {
+  return fetch(url, { method: 'POST', body: new URLSearchParams(params || {}) });
+}
+
+function toast(msg, err) {
+  const el = document.getElementById('toast');
+  el.textContent = msg;
+  el.style.background = err ? 'var(--danger)' : 'var(--primary)';
+  el.style.display = 'block';
+  clearTimeout(toast._t);
+  toast._t = setTimeout(() => el.style.display = 'none', 1600);
+}
+
+// The board is a single-threaded web server: throttle the slider so dragging
+// it does not queue dozens of requests.
+function onSlide(v) {
+  document.getElementById('pwm-val').textContent = v;
+  pending = v;
+  const now = Date.now();
+  if (now - lastSent > 90) {
+    lastSent = now;
+    post('/testPanel', { servo: sel, pwm: pending });
+    pending = null;
+  }
+}
+setInterval(() => {
+  if (pending !== null) {
+    lastSent = Date.now();
+    post('/testPanel', { servo: sel, pwm: pending });
+    pending = null;
+  }
+}, 120);
+
+function capture(which) {
+  const v = +document.getElementById('pwm').value;
+  if (which === 'closed') closed[sel] = v; else open[sel] = v;
+  render();
+  toast(which === 'closed' ? 'Position fermee retenue' : 'Position ouverte retenue');
+}
+
+async function save() {
+  await post('/setPanelCalibration', { servo: sel, closed: closed[sel], open: open[sel] });
+  toast('Servo ' + sel + ' enregistre');
+}
+
+async function toggleEnabled() {
+  enabled = !enabled;
+  await post('/setPanels', { value: enabled ? 1 : 0 });
+  toast(enabled ? 'Active, redemarre la carte' : 'Desactive');
+  load();
+}
+
+function select(i) {
+  sel = i;
+  document.getElementById('sel-label').textContent = i;
+  document.getElementById('pwm').value = closed[i];
+  document.getElementById('pwm-val').textContent = closed[i];
+  render();
+}
+
+function render() {
+  const g = document.getElementById('grid');
+  g.innerHTML = '';
+  for (let i = 0; i < closed.length; i++) {
+    const b = document.createElement('button');
+    const touched = closed[i] !== 150 || open[i] !== 600;
+    b.className = 'servo-btn' + (i === sel ? ' sel' : (touched ? ' done' : ''));
+    b.textContent = i;
+    b.onclick = () => select(i);
+    g.appendChild(b);
+  }
+  document.getElementById('v-closed').textContent = closed[sel];
+  document.getElementById('v-open').textContent   = open[sel];
+  document.getElementById('en-btn').textContent = enabled ? 'Actifs' : 'Coupes';
+  document.getElementById('en-btn').className = 'btn btn-sm ' + (enabled ? 'btn-primary' : 'btn-ghost');
+  document.getElementById('warn').style.display = enabled ? 'none' : 'block';
+}
+
+async function load() {
+  const d = await fetch('/getPanels').then(r => r.json());
+  closed = d.closed; open = d.open; enabled = !!d.enabled;
+  select(sel);
+}
+
+load();
+</script>
+</body>
+</html>

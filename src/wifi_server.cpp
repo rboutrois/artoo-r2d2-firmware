@@ -13,6 +13,7 @@
 #include "actions.h"
 #include "sbus_receiver.h"
 #include "greeter.h"
+#include "panels.h"
 
 static WebServer    server(80);
 static ArtooConfig* pConfig;
@@ -41,6 +42,7 @@ static void handleRoot()   { serveFile("/index.html",  "text/html"); }
 static void handleManual() { serveFile("/manual.html", "text/html"); }
 static void handleConfig() { serveFile("/config.html", "text/html"); }
 static void handleShow()   { serveFile("/show.html",   "text/html"); }
+static void handlePanelsPage() { serveFile("/panels.html", "text/html"); }
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -535,6 +537,65 @@ static void handleResetConfig() {
 // ---------------------------------------------------------------------------
 
 // ---------------------------------------------------------------------------
+// Dome panels
+// ---------------------------------------------------------------------------
+
+static void handleGetPanels() {
+    JsonDocument doc;
+    doc["enabled"] = pConfig->panelsEnabled ? 1 : 0;
+    doc["count"]   = PANEL_COUNT;
+    doc["busy"]    = panels_busy() ? 1 : 0;
+    JsonArray c = doc["closed"].to<JsonArray>();
+    JsonArray o = doc["open"].to<JsonArray>();
+    for (int i = 0; i < PANEL_COUNT; i++) {
+        c.add(panel_get_closed(i));
+        o.add(panel_get_open(i));
+    }
+    String out;
+    serializeJson(doc, out);
+    server.send(200, "application/json", out);
+}
+
+// Enabling requires a reboot: the I2C bus and both PCA9685 boards are set up
+// in setup(), and re-running that from a request handler is asking for trouble.
+static void handleSetPanels() {
+    pConfig->panelsEnabled = (server.arg("value").toInt() != 0);
+    config_save(pConfig);
+    server.send(200, "application/json", "{\"ok\":true,\"reboot_required\":true}");
+}
+
+static void handleTestPanel() {
+    panel_test(server.arg("servo").toInt(), server.arg("pwm").toInt());
+    sendOk();
+}
+
+static void handleSetPanelCalibration() {
+    int servo  = server.arg("servo").toInt();
+    int closed = server.arg("closed").toInt();
+    int open   = server.arg("open").toInt();
+    if (servo < 0 || servo >= PANEL_COUNT) { sendError(400, "bad servo"); return; }
+    panel_set_calibration(servo, closed, open);
+    panels_save_calibration();
+    sendOk();
+}
+
+static void handlePanelSet() {
+    panel_set(server.arg("servo").toInt(), server.arg("open").toInt() != 0);
+    sendOk();
+}
+
+static void handlePanelsAll() {
+    server.arg("open").toInt() != 0 ? panels_all_open() : panels_all_close();
+    sendOk();
+}
+
+static void handlePanelsWave() {
+    int step = server.hasArg("step") ? server.arg("step").toInt() : PANEL_WAVE_STEP_MS;
+    panels_wave(server.arg("open").toInt() != 0, step);
+    sendOk();
+}
+
+// ---------------------------------------------------------------------------
 // Greeter (reception mode)
 // ---------------------------------------------------------------------------
 
@@ -608,6 +669,7 @@ static void handleEmergencyStop() {
     pStatus->secondSteerVal    = 0;
     sequence_stop();
     greeter_stop();
+    panels_all_close();
     hoverboard_send_stop();
     dome_stop();
     sound_stop();
@@ -666,6 +728,7 @@ static void registerRoutes() {
     server.on("/manual",  HTTP_GET, handleManual);
     server.on("/config",  HTTP_GET, handleConfig);
     server.on("/show",    HTTP_GET, handleShow);
+    server.on("/panels",  HTTP_GET, handlePanelsPage);
     server.serveStatic("/style.css", SPIFFS, "/style.css");
 
     // Status & config
@@ -734,6 +797,13 @@ static void registerRoutes() {
     server.on("/setGreeterIntensity", HTTP_POST, handleSetGreeterIntensity);
     server.on("/setTrackOffset",      HTTP_POST, handleSetTrackOffset);
     server.on("/playPath",            HTTP_POST, handlePlayPath);
+    server.on("/getPanels",           HTTP_GET,  handleGetPanels);
+    server.on("/setPanels",           HTTP_POST, handleSetPanels);
+    server.on("/testPanel",           HTTP_POST, handleTestPanel);
+    server.on("/setPanelCalibration", HTTP_POST, handleSetPanelCalibration);
+    server.on("/panelSet",            HTTP_POST, handlePanelSet);
+    server.on("/panelsAll",           HTTP_POST, handlePanelsAll);
+    server.on("/panelsWave",          HTTP_POST, handlePanelsWave);
     server.on("/setCrowdLimit",       HTTP_POST, handleSetCrowdLimit);
     server.on("/resetConfig",         HTTP_POST, handleResetConfig);
     server.on("/update",              HTTP_POST, handleUpdateDone, handleUpdateUpload);

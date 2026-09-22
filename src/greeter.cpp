@@ -3,6 +3,7 @@
 #include "config.h"
 #include "dome.h"
 #include "sound.h"
+#include "panels.h"
 
 // ---------------------------------------------------------------------------
 // Scene description
@@ -14,6 +15,7 @@ typedef enum {
     STEP_DOME = 0,      // p1 = speed -100..100, p2 = move duration (ms)
     STEP_TRACK,         // p1 = track number
     STEP_TRACK_RANGE,   // p1..p2 = pick one track at random in this range
+    STEP_PANELS,        // p1 = 1 open / 0 close, p2 = ms between panels
     STEP_PAUSE,         // nothing, just wait
 } StepType;
 
@@ -82,6 +84,12 @@ static const Step SC_ALERT[] = {
     { STEP_DOME,       -70, 900, 1000 },
 };
 
+static const Step SC_PANELS[] = {
+    { STEP_TRACK,  TRACK_DOODOO, 0,  300 },
+    { STEP_PANELS, 1, 120, 4200 },
+    { STEP_PANELS, 0, 100, 3600 },
+};
+
 static const Step SC_SCREAM[]  = { { STEP_TRACK, TRACK_SCREAM,  0, 2500 } };
 static const Step SC_LAUGH[]   = { { STEP_TRACK, TRACK_CHORTLE, 0, 2800 } };
 static const Step SC_ANNOYED[] = { { STEP_TRACK, TRACK_ANNOYED, 0, 3500 } };
@@ -99,6 +107,7 @@ static const Scene s_scenes[] = {
     SCENE("Tour d'horizon", true, SC_LOOKAROUND),
     SCENE("Bonjour",      false, SC_HELLO),
     SCENE("Alerte",       false, SC_ALERT),
+    SCENE("Panneaux",     false, SC_PANELS),
     SCENE("Cri",          false, SC_SCREAM),
     SCENE("Rire",         false, SC_LAUGH),
     SCENE("Rale",         false, SC_ANNOYED),
@@ -155,6 +164,11 @@ static void runStep(const ArtooConfig* cfg, const Step& st) {
             break;
         case STEP_TRACK_RANGE:
             playTrack(cfg, (int)random(st.p1, st.p2 + 1));
+            break;
+        case STEP_PANELS:
+            // Silently does nothing while the dome panels are disabled,
+            // so a scene stays safe on a robot whose dome is not wired.
+            panels_wave(st.p1 != 0, st.p2);
             break;
         case STEP_PAUSE:
         default:
@@ -238,8 +252,9 @@ void greeter_update(const ArtooConfig* cfg, ArtooStatus* status) {
     bool suspended = (long)(now - s_suspendUntil) < 0;
 
     // Tells dome.cpp that the greeter owns the dome right now, so stick-driven
-    // dome control in stationary mode does not fight the scene.
-    status->greeterActive = s_enabled && !suspended;
+    // dome control in stationary mode does not fight the scene. A scene played
+    // by hand counts too, even when the autonomous loop is off.
+    status->greeterActive = (s_enabled || s_sceneIdx >= 0) && !suspended;
 
     // Play the scene in progress
     if (s_sceneIdx >= 0) {

@@ -43,6 +43,7 @@ void config_init(ArtooConfig* cfg) {
     cfg->crowdLimit     = prefs.getBool("crowd_on",  DEFAULT_CROWD_LIMIT);
     cfg->crowdSpeed     = prefs.getInt("crowd_spd",  DEFAULT_CROWD_SPEED);
 
+    cfg->panelsEnabled    = prefs.getBool("panels_on", DEFAULT_PANELS_ENABLED);
     cfg->greeterEnabled   = prefs.getBool("greet_on",  DEFAULT_GREETER_ENABLED);
     cfg->greeterIntensity = prefs.getInt("greet_lvl",  DEFAULT_GREETER_INTENSITY);
     cfg->trackCount       = prefs.getInt("trk_count",  DEFAULT_TRACK_COUNT);
@@ -107,6 +108,7 @@ void config_save(const ArtooConfig* cfg) {
     prefs.putBool("crowd_on",  cfg->crowdLimit);
     prefs.putInt("crowd_spd",  cfg->crowdSpeed);
 
+    prefs.putBool("panels_on", cfg->panelsEnabled);
     prefs.putBool("greet_on",  cfg->greeterEnabled);
     prefs.putInt("greet_lvl",  cfg->greeterIntensity);
     prefs.putInt("trk_count",  cfg->trackCount);
@@ -126,6 +128,25 @@ void config_save(const ArtooConfig* cfg) {
     prefs.putString("wifi_ssid", cfg->wifiSSID);
     prefs.putString("wifi_pass", cfg->wifiPassword);
 
+    prefs.end();
+}
+
+// ---------------------------------------------------------------------------
+// Panel calibration (stored as blobs)
+// ---------------------------------------------------------------------------
+
+void config_load_panels(int* closed, int* open, int count) {
+    prefs.begin(NVS_NAMESPACE, true);
+    size_t want = (size_t)count * sizeof(int);
+    if (prefs.getBytesLength("pan_cls") == want) prefs.getBytes("pan_cls", closed, want);
+    if (prefs.getBytesLength("pan_opn") == want) prefs.getBytes("pan_opn", open,   want);
+    prefs.end();
+}
+
+void config_save_panels(const int* closed, const int* open, int count) {
+    prefs.begin(NVS_NAMESPACE, false);
+    prefs.putBytes("pan_cls", closed, (size_t)count * sizeof(int));
+    prefs.putBytes("pan_opn", open,   (size_t)count * sizeof(int));
     prefs.end();
 }
 

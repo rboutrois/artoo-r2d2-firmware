@@ -95,6 +95,9 @@ typedef struct {
     bool    crowdLimit;     // cap top speed to crowdSpeed (indoor / public events)
     int     crowdSpeed;     // capped top speed used when crowdLimit is on
 
+    // Dome panels (two PCA9685 boards through the slipring)
+    bool    panelsEnabled;
+
     // Greeter (reception mode)
     bool    greeterEnabled;
     int     greeterIntensity;   // 0 calm, 1 normal, 2 lively

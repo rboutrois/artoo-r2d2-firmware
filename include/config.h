@@ -44,10 +44,12 @@
 #define PIN_ARM4            18
 #define PIN_ARM5            32
 
-// I2C (PCA9685 — arm servos)
+// I2C — goes up to the dome through the slipring.
+// The two PCA9685 boards on this bus drive the DOME PANELS (see panels.h).
+// The arms are plain PWM on PIN_ARM1 / PIN_ARM2, not I2C.
 #define PIN_I2C_SDA         21
 #define PIN_I2C_SCL         22
-#define PCA9685_ADDR        0x40
+#define PCA9685_ADDR        0x40    // legacy alias, see PANEL_PCA_ADDR_0
 
 // RC input channels (Standard PWM mode)
 // CH1=TDO(15), CH2=TCK(13), CH3=IO2, CH4=IO4, CH5=TDI(12), CH6=IO27
@@ -170,6 +172,13 @@
 
 #define DEFAULT_TRACK_COUNT     53      // playable tracks (random sounds)
 #define DEFAULT_TRACK_OFFSET    0       // shifts every track number sent
+
+// -----------------------------------------------------------------------------
+// DOME PANELS
+// -----------------------------------------------------------------------------
+// Off by default: the dome is not always wired, and driving servos that are
+// not there (or not calibrated) is how servos die.
+#define DEFAULT_PANELS_ENABLED  false
 
 // -----------------------------------------------------------------------------
 // GREETER (reception mode)

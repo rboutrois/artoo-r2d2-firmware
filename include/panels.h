@@ -1,37 +1,45 @@
 #pragma once
+#include "types.h"
 
 // =============================================================================
-// PANELS — servos des panneaux du dôme (et holoprojecteurs)
+// PANELS — dome panel servos (and holoprojectors)
 // =============================================================================
-// Pilote les servos du dôme via DEUX cartes PCA9685 (I2C) :
-//   - servo 0..15  -> carte 0, adresse 0x40
-//   - servo 16..31 -> carte 1, adresse 0x41
-// Les deux cartes sont sur le bus I2C (PIN_I2C_SDA/PIN_I2C_SCL de config.h),
-// qui monte au dôme par le slipring.
+// Driven through TWO PCA9685 boards on the I2C bus that goes up to the dome
+// through the slipring:
+//   - servo 0..15  -> board 0, address 0x40
+//   - servo 16..31 -> board 1, address 0x41
 //
-// Squelette à compléter :
-//   - calibrer les positions fermé/ouvert de chaque servo (voir panel_test),
-//   - appeler panels_init() dans setup() de main.cpp,
-//   - brancher les actions/endpoints (actions.cpp, wifi_server.cpp) si besoin,
-//   - persister la calibration en NVS via config.cpp (TODO ci-dessous).
+// Nothing moves unless the panels are enabled in the config: the dome is not
+// always wired, and a servo driven into a mechanical hard stop is a dead servo.
 
-#define PANEL_COUNT           32      // 2 x PCA9685 (16 voies chacune)
+#define PANEL_COUNT           32      // 2 x PCA9685 (16 channels each)
 #define PANEL_PCA_ADDR_0      0x40
 #define PANEL_PCA_ADDR_1      0x41
-#define PANEL_PWM_FREQ        50      // Hz, fréquence standard des servos
+#define PANEL_PWM_FREQ        50      // Hz, standard servo frame rate
 
-// Valeurs PWM 12 bits (0..4095) par défaut — À CALIBRER servo par servo.
-// Repère : à 50 Hz, ~150 ≈ 1 ms (mini) et ~600 ≈ 2 ms (maxi).
+// 12-bit PWM counts (0..4095), TO BE CALIBRATED servo by servo.
+// Reference: at 50 Hz, ~150 is about 1 ms and ~600 is about 2 ms.
 #define PANEL_DEFAULT_CLOSED  150
 #define PANEL_DEFAULT_OPEN    600
 
-void panels_init();                          // init I2C + les 2 cartes, tout fermer
-void panel_set(int servo, bool open);        // ouvre/ferme un panneau (0..PANEL_COUNT-1)
-void panels_all_close();                     // ferme tous les panneaux
-void panel_test(int servo, int pwmCount);    // envoie une valeur brute 12 bits (calibration)
+#define PANEL_WAVE_STEP_MS    120     // default delay between panels in a wave
 
-// Calibration par servo (en RAM pour l'instant).
-// TODO: charger/sauver depuis ArtooConfig (NVS) via config.cpp.
+void panels_init(const ArtooConfig* cfg);
+void panels_update();                          // advances running animations
+void panel_set(int servo, bool open);          // one panel, open or closed
+void panels_all_close();
+void panels_all_open();
+
+// Cascade: opens (or closes) the panels one after another. Non-blocking, so a
+// wave never stalls the RC link or the emergency stop.
+void panels_wave(bool open, int stepMs);
+bool panels_busy();
+
+// Raw 12-bit value on one servo, for calibration. Never push a servo into a
+// mechanical hard stop.
+void panel_test(int servo, int pwmCount);
+
 void panel_set_calibration(int servo, int closedCount, int openCount);
+void panels_save_calibration();                // persists to NVS via config.cpp
 int  panel_get_closed(int servo);
 int  panel_get_open(int servo);
