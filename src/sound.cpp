@@ -1,4 +1,5 @@
 #include <Arduino.h>
+#include <string.h>
 #include "sound.h"
 #include "config.h"
 
@@ -9,7 +10,7 @@
 
 static const uint32_t BIT_US = 1000000UL / SOUND_BAUD;   // ≈ 104 µs per bit
 
-static int  s_trackCount   = 70;   // default from spec; update if known
+static int  s_trackCount   = DEFAULT_TRACK_COUNT;   // overridden from config at init
 static unsigned long s_nextRandom = 0;
 
 // FreeRTOS critical-section lock — prevents WiFi ISR from preempting between
@@ -52,6 +53,27 @@ static void cmdPlayTrack(int n) {
     txPacket(buf, sizeof(buf));
 }
 
+// Specified Path: AA 08 <len> <drive> <path...> <checksum>
+// len counts the drive byte plus the path bytes.
+static void cmdPlayPath(uint8_t drive, const char* path) {
+    size_t plen = strlen(path);
+    if (plen == 0 || plen > 32) return;
+
+    uint8_t buf[40];
+    uint8_t n = 0;
+    buf[n++] = 0xAA;
+    buf[n++] = 0x08;
+    buf[n++] = (uint8_t)(plen + 1);
+    buf[n++] = drive;
+    for (size_t i = 0; i < plen; i++) buf[n++] = (uint8_t)path[i];
+
+    uint16_t sum = 0;
+    for (uint8_t i = 0; i < n; i++) sum += buf[i];
+    buf[n++] = (uint8_t)(sum & 0xFF);
+
+    txPacket(buf, n);
+}
+
 static void cmdStop() {
     uint8_t buf[] = { 0xAA, 0x04, 0x00, 0xAE };
     txPacket(buf, sizeof(buf));
@@ -68,7 +90,16 @@ static void cmdSetVolume(int v) {
 // Public API
 // ---------------------------------------------------------------------------
 
+void sound_set_track_count(int n) {
+    if (n > 0) s_trackCount = n;
+}
+
+void sound_play_path(int drive, const char* path) {
+    cmdPlayPath((uint8_t)drive, path);
+}
+
 void sound_init(const ArtooConfig* cfg) {
+    sound_set_track_count(cfg->trackCount);
     pinMode(PIN_SOUND_TX, OUTPUT);
     digitalWrite(PIN_SOUND_TX, HIGH);   // idle HIGH for UART
     delay(600);                          // let DY-SV5W finish booting

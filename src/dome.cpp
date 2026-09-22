@@ -78,8 +78,10 @@ void dome_update(const ArtooConfig* cfg, ArtooStatus* status) {
         s_targetSpeed = 0.0f;
     }
 
-    // In stationary mode the left stick controls the dome directly
-    if (status->mode == MODE_STATIONARY && !cfg->randomDome) {
+    // In stationary mode the left stick controls the dome directly, unless the
+    // greeter is running a scene: two sources fighting over the dome would make
+    // it stutter.
+    if (status->mode == MODE_STATIONARY && !cfg->randomDome && !status->greeterActive) {
         s_targetSpeed = (float)status->throttleVal / 10.0f;   // -1000..+1000 → -100..+100
     }
 

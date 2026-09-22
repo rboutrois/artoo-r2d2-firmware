@@ -1,0 +1,222 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Artoo — Accueil</title>
+<link rel="stylesheet" href="/style.css">
+<style>
+  main { padding-bottom: 96px; }
+  .scene-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  .scene-btn {
+    min-height: 68px; border-radius: var(--radius); border: 1px solid var(--border);
+    background: var(--surface); color: var(--text); font-size: 16px; font-weight: 600;
+    padding: 10px; line-height: 1.2;
+  }
+  .scene-btn.manual { border-color: var(--accent); }
+  .scene-btn:active { background: var(--accent); color: #fff; }
+  .pill { font-size: 11px; font-weight: 700; padding: 3px 8px; border-radius: 999px; }
+  .pill.ok   { background: rgba(63,185,80,.15);  color: var(--green); }
+  .pill.bad  { background: rgba(218,54,51,.18);  color: #ff7b72; }
+  .stopbar {
+    position: fixed; left: 0; right: 0; bottom: 0; padding: 10px 14px 18px;
+    background: linear-gradient(to top, var(--bg) 70%, transparent);
+  }
+  .statusline { display: flex; gap: 8px; align-items: center; margin-bottom: 12px; flex-wrap: wrap; }
+</style>
+</head>
+<body>
+<nav>
+  <h1>Artoo <small>Accueil</small></h1>
+  <a href="/">Home</a>
+  <a href="/show" class="active">Accueil</a>
+  <a href="/manual">Manual</a>
+</nav>
+
+<main>
+  <div id="estop-banner" style="display:none;background:var(--danger);color:#fff;
+       padding:14px;border-radius:10px;margin-bottom:14px;text-align:center">
+    <b>&#9940; ARRET D'URGENCE ENCLENCHE</b>
+    <button class="btn btn-block" style="margin-top:10px;background:#fff;color:var(--danger)"
+            onclick="post('/clearEmergencyStop').then(refresh)">Relacher</button>
+  </div>
+
+  <div class="statusline">
+    <span class="pill ok" id="p-bat">— V</span>
+    <span class="pill ok" id="p-rc">RC —</span>
+    <span class="pill ok" id="p-greeter">Vie —</span>
+    <span class="pill ok" id="p-crowd">Foule —</span>
+  </div>
+
+  <div class="card">
+    <h2>Mode accueil</h2>
+    <div class="btn-group" style="margin-bottom:10px">
+      <button class="btn btn-lg" id="g-off" onclick="setGreeter(0)">Repos</button>
+      <button class="btn btn-lg" id="g-on"  onclick="setGreeter(1)">Il vit</button>
+    </div>
+    <div class="btn-group">
+      <button class="btn btn-sm" id="lvl0" onclick="setLevel(0)">Calme</button>
+      <button class="btn btn-sm" id="lvl1" onclick="setLevel(1)">Normal</button>
+      <button class="btn btn-sm" id="lvl2" onclick="setLevel(2)">Vif</button>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>Scenes</h2>
+    <div class="scene-grid" id="scenes"></div>
+    <button class="btn btn-ghost btn-block" style="margin-top:10px" onclick="post('/stopScene')">
+      Couper la scene
+    </button>
+  </div>
+
+  <div class="card">
+    <h2>Son</h2>
+    <div class="range-row">
+      <span class="label">Volume</span>
+      <input type="range" id="vol" min="0" max="30"
+             oninput="document.getElementById('vol-val').textContent=this.value"
+             onchange="post('/setVolume',{value:this.value})">
+      <span class="range-val" id="vol-val">—</span>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>Vitesse</h2>
+    <div class="row">
+      <span class="label">Bridage foule</span>
+      <div class="btn-group">
+        <button class="btn btn-sm" id="crowd-btn" onclick="toggleCrowd()">—</button>
+      </div>
+    </div>
+  </div>
+
+  <details class="card">
+    <summary style="cursor:pointer;font-weight:600">Reglages carte SD (banc)</summary>
+    <div style="margin-top:12px">
+      <div class="row" style="margin-bottom:10px">
+        <input type="number" id="trk" value="1" min="1" max="255" style="width:90px">
+        <button class="btn btn-ghost" style="flex:1"
+                onclick="post('/playSpecificSound',{number:document.getElementById('trk').value})">
+          Jouer la piste
+        </button>
+      </div>
+      <div class="row" style="margin-bottom:10px">
+        <span class="label">Decalage</span>
+        <input type="number" id="off" value="0" style="width:90px">
+        <button class="btn btn-ghost btn-sm"
+                onclick="post('/setTrackOffset',{value:document.getElementById('off').value}).then(refresh)">
+          Appliquer
+        </button>
+      </div>
+      <div class="row">
+        <input type="text" id="path" placeholder="/01/00001*MP3" style="flex:1">
+        <button class="btn btn-ghost btn-sm"
+                onclick="post('/playPath',{path:document.getElementById('path').value,drive:1})">
+          Chemin
+        </button>
+      </div>
+      <div style="font-size:12px;color:var(--dim);margin-top:8px">
+        Le format exact du chemin n'est pas documente : c'est ici qu'on le trouve.
+      </div>
+    </div>
+  </details>
+</main>
+
+<div class="stopbar">
+  <button class="btn btn-danger btn-block btn-lg" onclick="estop()">&#9940; ARRET D'URGENCE</button>
+</div>
+
+<div id="toast"></div>
+
+<script>
+function post(url, params) {
+  return fetch(url, { method: 'POST', body: new URLSearchParams(params || {}) });
+}
+
+function toast(msg, err) {
+  const el = document.getElementById('toast');
+  el.textContent = msg;
+  el.style.background = err ? 'var(--danger)' : 'var(--primary)';
+  el.style.display = 'block';
+  clearTimeout(toast._t);
+  toast._t = setTimeout(() => el.style.display = 'none', 1600);
+}
+
+async function estop() {
+  await post('/emergencyStop');
+  toast('Arret enclenche', true);
+  refresh();
+}
+
+async function setGreeter(v) { await post('/setGreeter', { value: v }); refresh(); }
+async function setLevel(v)   { await post('/setGreeterIntensity', { value: v }); refresh(); }
+
+let s_crowd = true;
+async function toggleCrowd() {
+  s_crowd = !s_crowd;
+  await post('/setCrowdLimit', { value: s_crowd ? 1 : 0 });
+  toast(s_crowd ? 'Bridage foule actif' : 'Bridage leve', !s_crowd);
+  refresh();
+}
+
+// Scenes are built once: the list never changes while the robot runs
+fetch('/getScenes').then(r => r.json()).then(list => {
+  const grid = document.getElementById('scenes');
+  grid.innerHTML = '';
+  list.forEach(s => {
+    const b = document.createElement('button');
+    b.className = 'scene-btn' + (s.ambient ? '' : ' manual');
+    b.textContent = s.name;
+    b.onclick = () => { post('/playScene', { id: s.id }); toast(s.name); };
+    grid.appendChild(b);
+  });
+}).catch(() => {});
+
+let s_loaded = false;
+
+async function refresh() {
+  try {
+    const d = await fetch('/status').then(r => r.json());
+
+    const bat = document.getElementById('p-bat');
+    bat.textContent = d.battery > 0 ? d.battery.toFixed(1) + ' V' : '— V';
+
+    const rc = document.getElementById('p-rc');
+    rc.textContent = d.rc_ok ? 'RC ok' : 'RC perdu';
+    rc.className   = 'pill ' + (d.rc_ok ? 'ok' : 'bad');
+
+    const g = document.getElementById('p-greeter');
+    g.textContent = d.greeter_on ? (d.greeter_active ? 'Il vit' : 'En pause') : 'Repos';
+    g.className   = 'pill ' + (d.greeter_on ? 'ok' : 'bad');
+
+    const c = document.getElementById('p-crowd');
+    s_crowd = !!d.crowd_limit;
+    c.textContent = s_crowd ? ('Foule ' + d.crowd_speed) : 'Bridage off';
+    c.className   = 'pill ' + (s_crowd ? 'ok' : 'bad');
+
+    document.getElementById('crowd-btn').textContent = s_crowd ? 'Actif' : 'Leve';
+    document.getElementById('crowd-btn').className   = 'btn btn-sm ' + (s_crowd ? 'btn-primary' : 'btn-ghost');
+
+    document.getElementById('g-on').className  = 'btn btn-lg ' + (d.greeter_on ? 'btn-primary' : 'btn-ghost');
+    document.getElementById('g-off').className = 'btn btn-lg ' + (d.greeter_on ? 'btn-ghost'   : 'btn-primary');
+    for (let i = 0; i < 3; i++) {
+      document.getElementById('lvl' + i).className =
+        'btn btn-sm ' + (d.greeter_intensity === i ? 'btn-accent' : 'btn-ghost');
+    }
+
+    document.getElementById('estop-banner').style.display = d.estop ? 'block' : 'none';
+
+    if (!s_loaded) {
+      s_loaded = true;
+      document.getElementById('vol').value = d.volume;
+      document.getElementById('vol-val').textContent = d.volume;
+      document.getElementById('off').value = d.track_offset;
+    }
+  } catch (_) {}
+}
+
+refresh();
+setInterval(refresh, 1000);
+</script>
+</body>
+</html>

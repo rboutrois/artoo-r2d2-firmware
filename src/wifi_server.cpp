@@ -12,6 +12,7 @@
 #include "arms.h"
 #include "actions.h"
 #include "sbus_receiver.h"
+#include "greeter.h"
 
 static WebServer    server(80);
 static ArtooConfig* pConfig;
@@ -39,6 +40,7 @@ static void serveFile(const char* path, const char* mime) {
 static void handleRoot()   { serveFile("/index.html",  "text/html"); }
 static void handleManual() { serveFile("/manual.html", "text/html"); }
 static void handleConfig() { serveFile("/config.html", "text/html"); }
+static void handleShow()   { serveFile("/show.html",   "text/html"); }
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -89,6 +91,12 @@ static void handleStatus() {
     doc["crowd_limit"]         = pConfig->crowdLimit ? 1 : 0;
     doc["crowd_speed"]         = pConfig->crowdSpeed;
     doc["sequence_running"]    = sequence_is_running() ? 1 : 0;
+    doc["greeter_on"]          = greeter_enabled()      ? 1 : 0;
+    doc["greeter_active"]      = pStatus->greeterActive ? 1 : 0;
+    doc["greeter_intensity"]   = pConfig->greeterIntensity;
+    doc["scene_running"]       = greeter_scene_running() ? 1 : 0;
+    doc["track_offset"]        = pConfig->trackOffset;
+    doc["track_count"]         = pConfig->trackCount;
 
     JsonArray btn = doc["btn"].to<JsonArray>();
     for (int i = 0; i < 4; i++) btn.add(sbus_button_state(i) ? 1 : 0);
@@ -133,6 +141,10 @@ static void handleGetConfig() {
     doc["receiver_mode"]       = pConfig->receiverMode;
     doc["crowd_limit"]         = pConfig->crowdLimit ? 1 : 0;
     doc["crowd_speed"]         = pConfig->crowdSpeed;
+    doc["greeter_on"]          = pConfig->greeterEnabled ? 1 : 0;
+    doc["greeter_intensity"]   = pConfig->greeterIntensity;
+    doc["track_count"]         = pConfig->trackCount;
+    doc["track_offset"]        = pConfig->trackOffset;
 
     String out;
     serializeJson(doc, out);
@@ -179,7 +191,13 @@ static void handleSaveConfig() {
     pConfig->receiverMode   = doc["receiver_mode"]       | pConfig->receiverMode;
     pConfig->crowdLimit     = (doc["crowd_limit"]        | (pConfig->crowdLimit ? 1 : 0)) != 0;
     pConfig->crowdSpeed     = doc["crowd_speed"]         | pConfig->crowdSpeed;
+    pConfig->greeterEnabled = (doc["greeter_on"]         | (pConfig->greeterEnabled ? 1 : 0)) != 0;
+    pConfig->greeterIntensity = doc["greeter_intensity"] | pConfig->greeterIntensity;
+    pConfig->trackCount     = doc["track_count"]         | pConfig->trackCount;
+    pConfig->trackOffset    = doc["track_offset"]        | pConfig->trackOffset;
 
+    sound_set_track_count(pConfig->trackCount);
+    greeter_set_enabled(pConfig->greeterEnabled);
     config_save(pConfig);
     sendOk();
 }
@@ -516,6 +534,69 @@ static void handleResetConfig() {
 // Emergency stop
 // ---------------------------------------------------------------------------
 
+// ---------------------------------------------------------------------------
+// Greeter (reception mode)
+// ---------------------------------------------------------------------------
+
+static void handleGetScenes() {
+    JsonDocument doc;
+    JsonArray arr = doc.to<JsonArray>();
+    for (int i = 0; i < greeter_scene_count(); i++) {
+        JsonObject o = arr.add<JsonObject>();
+        o["id"]      = i;
+        o["name"]    = greeter_scene_name(i);
+        o["ambient"] = greeter_scene_is_ambient(i) ? 1 : 0;
+    }
+    String out;
+    serializeJson(doc, out);
+    server.send(200, "application/json", out);
+}
+
+static void handlePlayScene() {
+    if (pStatus->estop) { sendError(409, "emergency stop latched"); return; }
+    greeter_play_scene(server.arg("id").toInt()) ? sendOk() : sendError(404, "no such scene");
+}
+
+static void handleStopScene() {
+    greeter_stop();
+    sendOk();
+}
+
+static void handleSetGreeter() {
+    pConfig->greeterEnabled = (server.arg("value").toInt() != 0);
+    greeter_set_enabled(pConfig->greeterEnabled);
+    config_save(pConfig);
+    sendOk();
+}
+
+static void handleSetGreeterIntensity() {
+    int v = server.arg("value").toInt();
+    if (v < 0) v = 0;
+    if (v > 2) v = 2;
+    pConfig->greeterIntensity = v;
+    config_save(pConfig);
+    sendOk();
+}
+
+// Shifts every track number sent to the sound module. Lets us realign the
+// whole bank from the phone if the card is numbered differently than expected,
+// with no reflash.
+static void handleSetTrackOffset() {
+    pConfig->trackOffset = server.arg("value").toInt();
+    config_save(pConfig);
+    sendOk();
+}
+
+// Bench tool: play a file by path to work out the string format the module
+// expects, without reflashing between attempts.
+static void handlePlayPath() {
+    String path  = server.arg("path");
+    int    drive = server.hasArg("drive") ? server.arg("drive").toInt() : 1;   // 1 = SD
+    if (path.isEmpty()) { sendError(400, "path required"); return; }
+    sound_play_path(drive, path.c_str());
+    sendOk();
+}
+
 // The stop has to LATCH. Zeroing the stick values only bought 20 ms: the next
 // sbus_update() read the sticks again and the robot carried on. Once latched,
 // every module refuses to drive until /clearEmergencyStop is called.
@@ -526,6 +607,7 @@ static void handleEmergencyStop() {
     pStatus->secondThrottleVal = 0;
     pStatus->secondSteerVal    = 0;
     sequence_stop();
+    greeter_stop();
     hoverboard_send_stop();
     dome_stop();
     sound_stop();
@@ -583,6 +665,7 @@ static void registerRoutes() {
     server.on("/",        HTTP_GET, handleRoot);
     server.on("/manual",  HTTP_GET, handleManual);
     server.on("/config",  HTTP_GET, handleConfig);
+    server.on("/show",    HTTP_GET, handleShow);
     server.serveStatic("/style.css", SPIFFS, "/style.css");
 
     // Status & config
@@ -644,6 +727,13 @@ static void registerRoutes() {
     // Safety, OTA & factory reset
     server.on("/emergencyStop",       HTTP_POST, handleEmergencyStop);
     server.on("/clearEmergencyStop",  HTTP_POST, handleClearEmergencyStop);
+    server.on("/getScenes",           HTTP_GET,  handleGetScenes);
+    server.on("/playScene",           HTTP_POST, handlePlayScene);
+    server.on("/stopScene",           HTTP_POST, handleStopScene);
+    server.on("/setGreeter",          HTTP_POST, handleSetGreeter);
+    server.on("/setGreeterIntensity", HTTP_POST, handleSetGreeterIntensity);
+    server.on("/setTrackOffset",      HTTP_POST, handleSetTrackOffset);
+    server.on("/playPath",            HTTP_POST, handlePlayPath);
     server.on("/setCrowdLimit",       HTTP_POST, handleSetCrowdLimit);
     server.on("/resetConfig",         HTTP_POST, handleResetConfig);
     server.on("/update",              HTTP_POST, handleUpdateDone, handleUpdateUpload);

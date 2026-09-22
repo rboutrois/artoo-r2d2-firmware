@@ -95,6 +95,12 @@ typedef struct {
     bool    crowdLimit;     // cap top speed to crowdSpeed (indoor / public events)
     int     crowdSpeed;     // capped top speed used when crowdLimit is on
 
+    // Greeter (reception mode)
+    bool    greeterEnabled;
+    int     greeterIntensity;   // 0 calm, 1 normal, 2 lively
+    int     trackCount;         // playable tracks on the card
+    int     trackOffset;        // added to every track number sent to the module
+
     // WiFi
     char    wifiSSID[32];
     char    wifiPassword[64];
@@ -118,6 +124,9 @@ typedef struct {
     // Safety
     bool    estop;          // latched emergency stop — cleared only on request
     bool    rcFailsafe;     // no usable RC link right now
+
+    // Greeter owns the dome right now (stick dome control stands down)
+    bool    greeterActive;
 } ArtooStatus;
 
 // --- Custom Action ---

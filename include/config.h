@@ -142,6 +142,44 @@
 #define DEFAULT_ARM2_MAX_PULSE  2000
 
 // -----------------------------------------------------------------------------
+// SOUND BANK MAP (Padawan bank, as written to the SD card)
+// -----------------------------------------------------------------------------
+// Track numbers of the Padawan bank prepared in "Sounds/SD Card/01".
+// The card mapping lives in carte-sd.csv next to the audio files.
+// If the module numbers the card differently, shift the whole bank at runtime
+// with the track offset (see /setTrackOffset) instead of editing these.
+#define TRACK_SCREAM            1
+#define TRACK_CHORTLE           2
+#define TRACK_DOODOO            3
+#define TRACK_WHISTLE           4
+#define TRACK_LEIA              5
+#define TRACK_SHORTCKT          6
+#define TRACK_PATROL            7
+#define TRACK_ANNOYED           8
+#define TRACK_THEME             9
+#define TRACK_ALARM_FIRST       13
+#define TRACK_ALARM_LAST        16
+#define TRACK_MISC_FIRST        17
+#define TRACK_MISC_LAST         24
+#define TRACK_OOH_FIRST         25
+#define TRACK_OOH_LAST          31
+#define TRACK_SENT_FIRST        32
+#define TRACK_SENT_LAST         51
+#define TRACK_HUM_FIRST         52
+#define TRACK_HUM_LAST          53
+
+#define DEFAULT_TRACK_COUNT     53      // playable tracks (random sounds)
+#define DEFAULT_TRACK_OFFSET    0       // shifts every track number sent
+
+// -----------------------------------------------------------------------------
+// GREETER (reception mode)
+// -----------------------------------------------------------------------------
+#define DEFAULT_GREETER_ENABLED   false
+#define DEFAULT_GREETER_INTENSITY 1     // 0 calm, 1 normal, 2 lively
+#define GREETER_STICK_DEADBAND    80    // stick travel that counts as a takeover
+#define GREETER_TAKEOVER_MS       8000  // stay out of the way after a takeover
+
+// -----------------------------------------------------------------------------
 // SAFETY
 // -----------------------------------------------------------------------------
 // No valid RC frame for this long -> failsafe. The receiver reports its own

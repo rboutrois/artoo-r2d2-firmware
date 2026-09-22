@@ -24,6 +24,7 @@
 #include "sound.h"
 #include "arms.h"
 #include "panels.h"
+#include "greeter.h"
 #include "actions.h"
 #include "buttons.h"
 
@@ -64,6 +65,9 @@ void setup() {
     // 8. Custom actions & sequences (SPIFFS JSON)
     actions_init();
 
+    // 9. Greeter — autonomous reception behaviour
+    greeter_init(&gConfig);
+
     Serial.println("Artoo ready.");
 }
 
@@ -75,6 +79,9 @@ void loop() {
     // Advance the running sequence, if any (never blocks).
     // Nothing new is allowed to start while the emergency stop is latched.
     if (!gStatus.estop) sequence_update(&gConfig);
+
+    // Autonomous reception behaviour (dome + sound only, never the wheels)
+    greeter_update(&gConfig, &gStatus);
 
     // Send hoverboard commands every 100 ms (stops automatically in stationary mode)
     hoverboard_update(&gConfig, &gStatus);

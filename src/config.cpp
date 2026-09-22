@@ -43,6 +43,11 @@ void config_init(ArtooConfig* cfg) {
     cfg->crowdLimit     = prefs.getBool("crowd_on",  DEFAULT_CROWD_LIMIT);
     cfg->crowdSpeed     = prefs.getInt("crowd_spd",  DEFAULT_CROWD_SPEED);
 
+    cfg->greeterEnabled   = prefs.getBool("greet_on",  DEFAULT_GREETER_ENABLED);
+    cfg->greeterIntensity = prefs.getInt("greet_lvl",  DEFAULT_GREETER_INTENSITY);
+    cfg->trackCount       = prefs.getInt("trk_count",  DEFAULT_TRACK_COUNT);
+    cfg->trackOffset      = prefs.getInt("trk_off",    DEFAULT_TRACK_OFFSET);
+
     for (int i = 0; i < 4; i++) {
         char ka[8], kp[9];
         snprintf(ka, sizeof(ka), "bd%d_a",  i);
@@ -101,6 +106,11 @@ void config_save(const ArtooConfig* cfg) {
 
     prefs.putBool("crowd_on",  cfg->crowdLimit);
     prefs.putInt("crowd_spd",  cfg->crowdSpeed);
+
+    prefs.putBool("greet_on",  cfg->greeterEnabled);
+    prefs.putInt("greet_lvl",  cfg->greeterIntensity);
+    prefs.putInt("trk_count",  cfg->trackCount);
+    prefs.putInt("trk_off",    cfg->trackOffset);
     for (int i = 0; i < 4; i++) {
         char ka[8], kp[9];
         snprintf(ka, sizeof(ka), "bd%d_a",  i);
